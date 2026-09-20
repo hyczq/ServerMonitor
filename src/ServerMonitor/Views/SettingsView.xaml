@@ -340,6 +340,81 @@
         </StackPanel>
       </Border>
 
+      <!-- ============ AI 助手 ============ -->
+      <Border Style="{StaticResource SettingsCard}">
+        <StackPanel>
+          <TextBlock Text="AI 助手" Style="{StaticResource SectionText}" />
+          <Border Style="{StaticResource Hairline}" Margin="0,12,0,16" />
+
+          <CheckBox Style="{StaticResource AppCheckBox}" Content="启用 AI 功能"
+                    IsChecked="{Binding AiEnabled, Mode=TwoWay}" />
+          <TextBlock Style="{StaticResource FieldHint}"
+                     Text="关闭后界面上的 AI 相关按钮会隐藏，此处的配置保留。" />
+
+          <Grid Margin="0,16,0,0">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="*" />
+              <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+
+            <StackPanel Grid.Column="0" Margin="0,0,10,0">
+              <TextBlock Text="接口地址" Style="{StaticResource FieldLabel}" />
+              <TextBox Style="{StaticResource AppTextBox}"
+                       Text="{Binding AiEndpoint, UpdateSourceTrigger=LostFocus}" />
+            </StackPanel>
+
+            <StackPanel Grid.Column="1" Margin="10,0,0,0">
+              <TextBlock Text="模型" Style="{StaticResource FieldLabel}" />
+              <TextBox Style="{StaticResource AppTextBox}"
+                       Text="{Binding AiModel, UpdateSourceTrigger=LostFocus}" />
+            </StackPanel>
+          </Grid>
+          <TextBlock Style="{StaticResource FieldHint}"
+                     Text="走 OpenAI 兼容协议，DeepSeek 官方与内网自建的 vLLM / Ollama 都支持。模型名填可用的取值即可（DeepSeek 常用：deepseek-flash、deepseek-v4-pro）。" />
+
+          <Grid Margin="0,14,0,0">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="*" />
+              <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+
+            <StackPanel Grid.Column="0" Margin="0,0,10,0">
+              <TextBlock Text="API 密钥" Style="{StaticResource FieldLabel}" />
+              <PasswordBox x:Name="AiKeyBox" Style="{StaticResource AppPasswordBox}"
+                           PasswordChanged="OnAiKeyChanged"
+                           LostFocus="OnAiKeyLostFocus" />
+            </StackPanel>
+
+            <StackPanel Grid.Column="1" Margin="10,0,0,0">
+              <TextBlock Text="超时（秒）" Style="{StaticResource FieldLabel}" />
+              <TextBox Style="{StaticResource NumberBox}"
+                       Text="{Binding AiTimeoutSeconds, UpdateSourceTrigger=LostFocus}" />
+            </StackPanel>
+          </Grid>
+          <TextBlock Style="{StaticResource FieldHint}"
+                     Text="密钥与服务器口令一样用 Windows DPAPI 加密后保存，不落明文。" />
+
+          <Border Style="{StaticResource Hairline}" Margin="0,16,0,14" />
+
+          <Grid>
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="*" />
+              <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <StackPanel Grid.Column="0" VerticalAlignment="Center">
+              <TextBlock Text="最近测试结果" Style="{StaticResource CaptionText}" />
+              <TextBlock Text="{Binding AiStatus}" Margin="0,3,0,0"
+                         TextWrapping="Wrap" FontSize="12"
+                         Foreground="{DynamicResource TextSecondary}" />
+            </StackPanel>
+            <Button Grid.Column="1" Content="测试连接" VerticalAlignment="Center"
+                    Style="{StaticResource GhostButton}"
+                    ToolTip="发一条极短的请求，同时验证地址、密钥、模型名三项"
+                    Command="{Binding TestAiCommand}" />
+          </Grid>
+        </StackPanel>
+      </Border>
+
       <!-- ============ 兼容性说明 ============ -->
       <Border Style="{StaticResource SettingsCard}">
         <StackPanel>

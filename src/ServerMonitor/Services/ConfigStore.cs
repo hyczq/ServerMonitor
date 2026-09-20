@@ -41,6 +41,14 @@ namespace ServerMonitor.Services
 
             Servers = ReadJson<List<ServerConfig>>(_serversPath) ?? new List<ServerConfig>();
             Settings = ReadJson<AppSettings>(_settingsPath) ?? new AppSettings();
+
+            // 顺序不能反：先还原明文密钥，再 Normalize。
+            // Normalize 会检查密钥是否为空来决定要不要关掉 AI，
+            // 此时若密钥还没解密，AI 会被误关。
+            if (!string.IsNullOrEmpty(Settings.AiApiKeyEncrypted))
+            {
+                Settings.AiApiKey = Unprotect(Settings.AiApiKeyEncrypted);
+            }
             Settings.Normalize();
 
             Logger.Debug("配置", "已读取 " + _serversPath + "（" + Servers.Count + " 台服务器）");
@@ -86,6 +94,10 @@ namespace ServerMonitor.Services
         public void SaveSettings()
         {
             Settings.Normalize();
+
+            // 密钥与服务器口令一样用 DPAPI 加密后落盘，不存明文
+            Settings.AiApiKeyEncrypted = Protect(Settings.AiApiKey);
+
             WriteJson(_settingsPath, Settings);
         }
 

@@ -1,4 +1,5 @@
 using System;
+using Newtonsoft.Json;
 
 namespace ServerMonitor.Models
 {
@@ -25,6 +26,38 @@ namespace ServerMonitor.Models
 
         /// <summary>同时采集的最大并发数，避免网络与目标机压力过大。</summary>
         public int MaxConcurrency { get; set; }
+
+        // ---------- AI ----------
+
+        /// <summary>是否启用 AI 功能。关闭时界面上的 AI 相关按钮不显示。</summary>
+        public bool AiEnabled { get; set; }
+
+        /// <summary>
+        /// 接口地址（OpenAI 兼容格式的 base url）。
+        /// 默认 DeepSeek 官方地址；内网自建的 vLLM / Ollama 也兼容这套协议，
+        /// 改成它们各自的地址即可，不用改代码。
+        /// </summary>
+        public string AiEndpoint { get; set; }
+
+        /// <summary>
+        /// 模型名。
+        ///
+        /// 刻意用字符串而不是写死的下拉框：DeepSeek 的模型名一年内改过几次
+        /// （deepseek-chat → deepseek-v4-flash → deepseek-flash），
+        /// 硬编码的话对方一改名程序就废了，只能等发新版本。
+        /// </summary>
+        public string AiModel { get; set; }
+
+        /// <summary>请求超时（秒）。</summary>
+        public int AiTimeoutSeconds { get; set; }
+
+        /// <summary>明文密钥，仅内存中使用，不参与序列化。</summary>
+        [JsonIgnore]
+        public string AiApiKey { get; set; }
+
+        /// <summary>DPAPI 加密后的密钥（Base64），落盘用。</summary>
+        [JsonProperty("aiApiKeyEnc")]
+        public string AiApiKeyEncrypted { get; set; }
 
         // ---------- 日志 ----------
 
@@ -82,6 +115,12 @@ namespace ServerMonitor.Models
             SparklinePoints = 40;
             MaxConcurrency = 8;
 
+            AiEnabled = false;
+            AiEndpoint = "https://api.deepseek.com";
+            AiModel = "deepseek-flash";
+            AiTimeoutSeconds = 30;
+            AiApiKey = string.Empty;
+
             LogLevel = "Info";
             LogRetentionDays = 14;
 
@@ -118,6 +157,30 @@ namespace ServerMonitor.Models
 
             if (MaxConcurrency < 1) MaxConcurrency = 1;
             if (MaxConcurrency > 64) MaxConcurrency = 64;
+
+            if (AiTimeoutSeconds < 5) AiTimeoutSeconds = 5;
+            if (AiTimeoutSeconds > 300) AiTimeoutSeconds = 300;
+
+            if (string.IsNullOrWhiteSpace(AiEndpoint))
+            {
+                AiEndpoint = "https://api.deepseek.com";
+            }
+            else
+            {
+                AiEndpoint = AiEndpoint.Trim().TrimEnd('/');
+            }
+
+            if (string.IsNullOrWhiteSpace(AiModel))
+            {
+                AiModel = "deepseek-flash";
+            }
+            else
+            {
+                AiModel = AiModel.Trim();
+            }
+
+            // 没填密钥就不要保持"已启用"，否则每次调用都白报一次错
+            if (string.IsNullOrWhiteSpace(AiApiKey)) AiEnabled = false;
 
             if (LogRetentionDays < 1) LogRetentionDays = 1;
             if (LogRetentionDays > 3650) LogRetentionDays = 3650;

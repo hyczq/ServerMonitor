@@ -22,6 +22,11 @@ namespace ServerMonitor
             DispatcherUnhandledException += OnDispatcherUnhandledException;
             AppDomain.CurrentDomain.UnhandledException += OnDomainUnhandledException;
 
+            // .NET Framework 4.5 的 ServicePointManager 默认不含 TLS 1.2，
+            // 不显式打开的话，所有 HTTPS 调用都会失败并报「基础连接已关闭」
+            // 这类看不出原因的错误。放在最前面，AI 接口和 Webhook 都受益。
+            AiClient.EnableModernTls();
+
             string dataDirectory = ResolveDataDirectory();
 
             _config = new ConfigStore(dataDirectory);

@@ -92,6 +92,7 @@ namespace ServerMonitor.ViewModels
             ExportReportCommand = new RelayCommand(ExportReport);
             TestWebhookCommand = new RelayCommand(TestWebhook, () => !_webhookBusy);
             OpenLogDirectoryCommand = new RelayCommand(OpenLogDirectory);
+            TestAiCommand = new RelayCommand(TestAi);
 
             RecomputeSummary();
         }
@@ -298,6 +299,7 @@ namespace ServerMonitor.ViewModels
         public RelayCommand ExportReportCommand { get; private set; }
         public RelayCommand TestWebhookCommand { get; private set; }
         public RelayCommand OpenLogDirectoryCommand { get; private set; }
+        public RelayCommand TestAiCommand { get; private set; }
 
         /// <summary>阈值示意图中"偏高"档的宽度占比（相对 100%）。</summary>
         public double WarnBandWidth
@@ -332,6 +334,132 @@ namespace ServerMonitor.ViewModels
             {
                 if (ShowMessage != null) ShowMessage("无法打开目录", ex.Message);
             }
+        }
+
+        // ---------- AI ----------
+
+        private string _aiStatus = "尚未测试";
+
+        public bool AiEnabled
+        {
+            get { return _config.Settings.AiEnabled; }
+            set
+            {
+                if (_config.Settings.AiEnabled == value) return;
+                _config.Settings.AiEnabled = value;
+                _config.SaveSettings();
+                Raise();
+                Logger.Info("AI", value ? "已启用" : "已停用");
+            }
+        }
+
+        public string AiEndpoint
+        {
+            get { return _config.Settings.AiEndpoint; }
+            set
+            {
+                if (_config.Settings.AiEndpoint == value) return;
+                _config.Settings.AiEndpoint = value;
+                _config.SaveSettings();
+                Raise();
+            }
+        }
+
+        /// <summary>模型名。故意不做成写死的下拉框——服务商改名的频率比程序发版高。</summary>
+        public string AiModel
+        {
+            get { return _config.Settings.AiModel; }
+            set
+            {
+                if (_config.Settings.AiModel == value) return;
+                _config.Settings.AiModel = value;
+                _config.SaveSettings();
+                Raise();
+            }
+        }
+
+        public int AiTimeoutSeconds
+        {
+            get { return _config.Settings.AiTimeoutSeconds; }
+            set
+            {
+                if (_config.Settings.AiTimeoutSeconds == value) return;
+                _config.Settings.AiTimeoutSeconds = value;
+                _config.SaveSettings();
+                Raise();
+            }
+        }
+
+        /// <summary>
+        /// API 密钥。只存在内存里，落盘时由 ConfigStore 用 DPAPI 加密。
+        /// 这里不直接存盘——PasswordBox 每敲一个字符都会触发同步，
+        /// 每个字符写一次磁盘代价太大。由界面在失焦时调用 <see cref="PersistSettings"/>。
+        /// </summary>
+        public string AiApiKey
+        {
+            get { return _config.Settings.AiApiKey; }
+            set
+            {
+                if (_config.Settings.AiApiKey == value) return;
+                _config.Settings.AiApiKey = value;
+                Raise();
+            }
+        }
+
+        /// <summary>最近一次连接测试的结果，显示在设置页。</summary>
+        public string AiStatus
+        {
+            get { return _aiStatus; }
+            private set { SetProperty(ref _aiStatus, value); }
+        }
+
+        /// <summary>把当前设置落盘（含 DPAPI 加密密钥）。由界面在失焦 / 离开页面时调用。</summary>
+        public void PersistSettings()
+        {
+            _config.SaveSettings();
+        }
+
+        private async void TestAi()
+        {
+            AiStatus = "正在测试…";
+
+            AppSettings settings = _config.Settings;
+
+            if (string.IsNullOrWhiteSpace(settings.AiApiKey))
+            {
+                AiStatus = "请先填写 API 密钥";
+                if (ShowMessage != null) ShowMessage("无法测试", "请先填写 API 密钥。");
+                return;
+            }
+
+            AiReply reply = await Task.Run(() => AiClient.TestConnection(settings));
+
+            if (reply.Success)
+            {
+                AiStatus = "连接正常（" + reply.ElapsedMs + "ms，返回：" +
+                           Trim(reply.Content, 20) + "）";
+                if (ShowMessage != null)
+                {
+                    ShowMessage("连接成功",
+                        "接口、密钥、模型名三项均正常。\n\n" +
+                        "模型：" + settings.AiModel + "\n" +
+                        "耗时：" + reply.ElapsedMs + "ms\n" +
+                        "Token：输入 " + reply.PromptTokens + " / 输出 " + reply.CompletionTokens +
+                        "\n模型回复：" + Trim(reply.Content, 60));
+                }
+            }
+            else
+            {
+                AiStatus = "连接失败：" + reply.Error;
+                if (ShowMessage != null) ShowMessage("连接失败", reply.Error);
+            }
+        }
+
+        private static string Trim(string text, int max)
+        {
+            if (string.IsNullOrWhiteSpace(text)) return "(空)";
+            text = text.Trim().Replace("\r", " ").Replace("\n", " ");
+            return text.Length <= max ? text : text.Substring(0, max) + "…";
         }
 
         // ---------- 日志 ----------
