@@ -1,0 +1,19 @@
+<Application x:Class="ServerMonitor.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             ShutdownMode="OnMainWindowClose">
+  <!--
+    不设 StartupUri：主窗口在 App.OnStartup 里手工创建，
+    以便先读配置、定主题、注入数据上下文，再显示窗口（避免启动瞬间闪白）。
+  -->
+  <Application.Resources>
+    <ResourceDictionary>
+      <ResourceDictionary.MergedDictionaries>
+        <ResourceDictionary Source="Themes/Icons.xaml" />
+        <ResourceDictionary Source="Themes/Tokens.Dark.xaml" />
+        <ResourceDictionary Source="Themes/Converters.xaml" />
+        <ResourceDictionary Source="Themes/Controls.xaml" />
+      </ResourceDictionary.MergedDictionaries>
+    </ResourceDictionary>
+  </Application.Resources>
+</Application>

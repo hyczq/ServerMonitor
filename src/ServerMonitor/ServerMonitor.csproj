@@ -1,0 +1,50 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    目标框架刻意锁定 net45：
+    Windows Server 2012 R2 自带 .NET Framework 4.5.1，因此本程序在该系统上
+    无需安装任何运行时即可直接运行（拷贝即用）。
+    如需在现代服务器上使用更新的 SSH 算法，可改为 net462 / net48 后重新编译。
+  -->
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net45</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <LangVersion>7.3</LangVersion>
+    <AssemblyName>ServerMonitor</AssemblyName>
+    <RootNamespace>ServerMonitor</RootNamespace>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <!-- 程序图标：exe 文件图标 + 窗口/任务栏图标。
+         图标由 tools\make-icon.ps1 生成，改图案后重跑该脚本即可。 -->
+    <ApplicationIcon>app.ico</ApplicationIcon>
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <Prefer32Bit>false</Prefer32Bit>
+    <DebugType>pdbonly</DebugType>
+    <SatelliteResourceLanguages>zh-Hans;en</SatelliteResourceLanguages>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3" PrivateAssets="all" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+    <PackageReference Include="SSH.NET" Version="2020.0.2" />
+
+    <!-- 仅编译期引用；运行期绑定到目标机 GAC 中的 PowerShell 程序集 -->
+    <PackageReference Include="Microsoft.PowerShell.5.ReferenceAssemblies" Version="1.1.0">
+      <PrivateAssets>all</PrivateAssets>
+      <ExcludeAssets>runtime</ExcludeAssets>
+    </PackageReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="System.Management" />
+    <Reference Include="System.Security" />
+    <Reference Include="System.Configuration" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- 作为资源嵌入，供窗口 Icon 属性引用 -->
+    <Resource Include="app.ico" />
+  </ItemGroup>
+
+</Project>

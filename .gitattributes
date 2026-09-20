@@ -1,0 +1,24 @@
+# 统一换行符，避免克隆后文件行尾不一致
+* text=auto
+
+# .cmd / .bat 必须是 CRLF —— cmd.exe 解析 LF 行尾的批处理时，
+# 带标签（goto/label）的脚本会出错
+*.cmd text eol=crlf
+*.bat text eol=crlf
+
+# PowerShell 与 C# 在 Windows 上保持 CRLF
+*.ps1 text eol=crlf
+*.cs text eol=crlf
+*.csproj text eol=crlf
+*.xaml text eol=crlf
+*.manifest text eol=crlf
+
+# 二进制文件不做行尾转换
+*.png binary
+*.ico binary
+*.dll binary
+*.exe binary
+*.zip binary
+
+# 不让 git 在 diff 里显示这些
+*.pdb binary

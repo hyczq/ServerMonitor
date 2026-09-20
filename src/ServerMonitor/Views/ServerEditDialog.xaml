@@ -1,0 +1,204 @@
+<Window x:Class="ServerMonitor.Views.ServerEditDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
+        Title="服务器"
+        Width="520"
+        SizeToContent="Height"
+        WindowStartupLocation="CenterOwner"
+        WindowStyle="None"
+        ResizeMode="NoResize"
+        ShowInTaskbar="False"
+        Background="{DynamicResource SurfaceCard}"
+        FontFamily="Segoe UI, Microsoft YaHei UI, Microsoft YaHei"
+        TextOptions.TextFormattingMode="Display">
+
+  <shell:WindowChrome.WindowChrome>
+    <shell:WindowChrome CaptionHeight="0" ResizeBorderThickness="0"
+                        GlassFrameThickness="0" CornerRadius="0"
+                        UseAeroCaptionButtons="False" />
+  </shell:WindowChrome.WindowChrome>
+
+  <Border BorderBrush="{DynamicResource StrokeStrong}" BorderThickness="1">
+    <StackPanel Margin="24,20,24,20">
+
+      <!-- 标题 -->
+      <StackPanel Orientation="Horizontal">
+        <Border Width="3" Height="16" CornerRadius="1.5"
+                Background="{DynamicResource Accent}" VerticalAlignment="Center" />
+        <TextBlock Text="{Binding Title}" Margin="10,0,0,0" FontSize="15"
+                   FontWeight="SemiBold" VerticalAlignment="Center"
+                   Foreground="{DynamicResource TextPrimary}" />
+      </StackPanel>
+
+      <!-- 地址与名称 -->
+      <Grid Margin="0,20,0,0">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="*" />
+          <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+        <StackPanel Grid.Column="0" Margin="0,0,10,0">
+          <TextBlock Text="内网 IP 或主机名" Margin="0,0,0,6"
+                     Style="{StaticResource BodyText}" />
+          <TextBox Style="{StaticResource AppTextBox}"
+                   Text="{Binding Host, UpdateSourceTrigger=PropertyChanged}" />
+        </StackPanel>
+        <StackPanel Grid.Column="1" Margin="10,0,0,0">
+          <TextBlock Text="显示名称（可留空）" Margin="0,0,0,6"
+                     Style="{StaticResource BodyText}" />
+          <TextBox Style="{StaticResource AppTextBox}"
+                   Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}" />
+        </StackPanel>
+      </Grid>
+
+      <!-- 系统类型与采集通道 -->
+      <Grid Margin="0,16,0,0">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="*" />
+          <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+        <StackPanel Grid.Column="0" Margin="0,0,10,0">
+          <TextBlock Text="系统类型" Margin="0,0,0,6" Style="{StaticResource BodyText}" />
+          <ComboBox Style="{StaticResource AppComboBox}"
+                    SelectedIndex="{Binding OsIndex, Mode=TwoWay}">
+            <ComboBoxItem Content="Linux" />
+            <ComboBoxItem Content="Windows" />
+          </ComboBox>
+        </StackPanel>
+        <StackPanel Grid.Column="1" Margin="10,0,0,0">
+          <TextBlock Text="采集通道" Margin="0,0,0,6" Style="{StaticResource BodyText}" />
+          <ComboBox Style="{StaticResource AppComboBox}"
+                    SelectedIndex="{Binding ProtocolIndex, Mode=TwoWay}">
+            <ComboBoxItem Content="自动" />
+            <ComboBoxItem Content="SSH" />
+            <ComboBoxItem Content="WMI" />
+            <ComboBoxItem Content="WinRM" />
+          </ComboBox>
+        </StackPanel>
+      </Grid>
+
+      <TextBlock Text="{Binding ProtocolHint}" Margin="0,8,0,0"
+                 Style="{StaticResource CaptionText}" TextWrapping="Wrap" />
+
+      <!-- 端口与用户名 -->
+      <Grid Margin="0,16,0,0">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="110" />
+          <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+        <StackPanel Grid.Column="0" Margin="0,0,10,0">
+          <TextBlock Text="端口" Margin="0,0,0,6" Style="{StaticResource BodyText}" />
+          <!-- 用 PropertyChanged 而不是 LostFocus：LostFocus 下，
+               用户填了端口直接点「测试连接」，值可能还没提交到 ViewModel。
+               其它文本字段同理，保持一致。 -->
+          <TextBox Style="{StaticResource AppTextBox}"
+                   Text="{Binding Port, UpdateSourceTrigger=PropertyChanged}" />
+        </StackPanel>
+        <StackPanel Grid.Column="1" Margin="10,0,0,0">
+          <TextBlock Text="用户名" Margin="0,0,0,6" Style="{StaticResource BodyText}" />
+          <TextBox Style="{StaticResource AppTextBox}"
+                   Text="{Binding Username, UpdateSourceTrigger=PropertyChanged}" />
+        </StackPanel>
+      </Grid>
+      <TextBlock Text="{Binding PortHint}" Margin="0,8,0,0"
+                 Style="{StaticResource CaptionText}" TextWrapping="Wrap" />
+
+      <!-- 口令与分组 -->
+      <Grid Margin="0,16,0,0">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="*" />
+          <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+        <StackPanel Grid.Column="0" Margin="0,0,10,0">
+          <TextBlock Text="口令" Margin="0,0,0,6" Style="{StaticResource BodyText}" />
+          <!-- PasswordBox 和 TextBox 叠在一起，靠可见性切换实现"显示明文"。
+               两者内容在切换时互相同步，保存时以当前可见的那个为准。 -->
+          <Grid>
+            <!-- 两个框的内容靠事件实时互相同步，并同步进 ViewModel。
+                 少了这一步，「测试连接」拿到的会是空口令或旧口令。 -->
+            <PasswordBox x:Name="PasswordInput" Style="{StaticResource AppPasswordBox}"
+                         Padding="10,7,38,7" PasswordChanged="OnPasswordChanged" />
+            <TextBox x:Name="PasswordPlain" Style="{StaticResource AppTextBox}"
+                     Padding="10,7,38,7" Visibility="Collapsed"
+                     TextChanged="OnPlainTextChanged" />
+            <Button x:Name="RevealButton" Style="{StaticResource IconButton}"
+                    Width="30" Height="30" Margin="0,0,3,0"
+                    HorizontalAlignment="Right" VerticalAlignment="Center"
+                    Click="OnToggleReveal" ToolTip="显示口令明文">
+              <Viewbox Width="15" Height="15">
+                <Path x:Name="RevealIcon" Style="{StaticResource IconPath}"
+                      Data="{StaticResource IconEye}"
+                      Stroke="{Binding Foreground,
+                               RelativeSource={RelativeSource AncestorType=Button}}" />
+              </Viewbox>
+            </Button>
+          </Grid>
+        </StackPanel>
+        <StackPanel Grid.Column="1" Margin="10,0,0,0">
+          <TextBlock Text="分组（可留空）" Margin="0,0,0,6" Style="{StaticResource BodyText}" />
+          <TextBox Style="{StaticResource AppTextBox}"
+                   Text="{Binding Group, UpdateSourceTrigger=PropertyChanged}" />
+        </StackPanel>
+      </Grid>
+
+      <CheckBox Style="{StaticResource AppCheckBox}" Content="启用采集" Margin="0,16,0,0"
+                IsChecked="{Binding Enabled, Mode=TwoWay}" />
+
+      <!-- 配置预警：本机地址 + 指定账号，必然连不上 -->
+      <Border Margin="0,14,0,0" Padding="11,9" CornerRadius="6"
+              Background="{DynamicResource SurfaceSunken}"
+              BorderBrush="{DynamicResource StatusWarning}" BorderThickness="1"
+              Visibility="{Binding LocalHostWarning, Converter={StaticResource StringToVis}}">
+        <!-- 用 Grid 而不是横向 StackPanel：StackPanel 以无限宽度测量子元素，
+             TextWrapping="Wrap" 会失效，长文本会被直接截断 -->
+        <Grid>
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto" />
+            <ColumnDefinition Width="*" />
+          </Grid.ColumnDefinitions>
+          <Path Grid.Column="0" Width="14" Height="14" Stretch="Uniform" Fill="Transparent"
+                StrokeThickness="1.8" StrokeLineJoin="Round" StrokeStartLineCap="Round"
+                Data="{StaticResource IconWarning}"
+                Stroke="{DynamicResource StatusWarning}" VerticalAlignment="Top" />
+          <TextBlock Grid.Column="1" Text="{Binding LocalHostWarning}" Margin="9,0,0,0"
+                     TextWrapping="Wrap" FontSize="12" LineHeight="18"
+                     Foreground="{DynamicResource TextSecondary}" />
+        </Grid>
+      </Border>
+
+      <!-- 校验 / 测试结果 -->
+      <Border Margin="0,14,0,0" Padding="11,9" CornerRadius="6"
+              Background="{DynamicResource SurfaceSunken}"
+              Visibility="{Binding HasValidationMessage, Converter={StaticResource BoolToVis}}">
+        <TextBlock Text="{Binding ValidationMessage}" TextWrapping="Wrap"
+                   FontSize="12" Foreground="{DynamicResource StatusCritical}" />
+      </Border>
+
+      <Border Margin="0,10,0,0" Padding="11,9" CornerRadius="6"
+              Background="{DynamicResource SurfaceSunken}"
+              Visibility="{Binding HasTestResult, Converter={StaticResource BoolToVis}}">
+        <TextBlock Text="{Binding TestResult}" TextWrapping="Wrap"
+                   FontSize="12" Foreground="{DynamicResource TextSecondary}" />
+      </Border>
+
+      <!-- 按钮 -->
+      <Grid Margin="0,20,0,0">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="Auto" />
+          <ColumnDefinition Width="*" />
+          <ColumnDefinition Width="Auto" />
+        </Grid.ColumnDefinitions>
+
+        <Button Grid.Column="0" Content="测试连接" Style="{StaticResource GhostButton}"
+                Click="OnTest" IsEnabled="{Binding IsNotTesting}" />
+
+        <StackPanel Grid.Column="2" Orientation="Horizontal">
+          <Button Content="取消" Style="{StaticResource GhostButton}" MinWidth="86"
+                  Click="OnCancel" IsCancel="True" />
+          <Button Content="保存" Style="{StaticResource PrimaryButton}" MinWidth="86"
+                  Margin="10,0,0,0" Click="OnSave" IsDefault="True" />
+        </StackPanel>
+      </Grid>
+    </StackPanel>
+  </Border>
+</Window>

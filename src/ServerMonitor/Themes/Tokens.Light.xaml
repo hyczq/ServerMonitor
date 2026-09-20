@@ -1,0 +1,49 @@
+<!--
+  浅色主题。token 名称与深色主题完全一致，运行时整表替换即可切换。
+  状态色色相不变，仅 @warning 的对比度低于 3:1 —— 这是状态色板固有限制，
+  已用"图标 + 文字标签"作为补偿通道，绝不靠颜色单独表意。
+-->
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+  <!-- 表面 -->
+  <SolidColorBrush x:Key="PagePlane"       Color="#F4F6F8" />
+  <SolidColorBrush x:Key="SurfaceCard"     Color="#FFFFFF" />
+  <SolidColorBrush x:Key="SurfaceHover"    Color="#F7F9FB" />
+  <SolidColorBrush x:Key="SurfaceSunken"   Color="#EDF1F5" />
+  <SolidColorBrush x:Key="SurfaceElevated" Color="#FFFFFF" />
+  <SolidColorBrush x:Key="OverlayScrim"    Color="#66070A0E" />
+
+  <!-- 文字 -->
+  <SolidColorBrush x:Key="TextPrimary"   Color="#0B0B0B" />
+  <SolidColorBrush x:Key="TextSecondary" Color="#4A5561" />
+  <SolidColorBrush x:Key="TextMuted"     Color="#7A8593" />
+  <SolidColorBrush x:Key="TextOnAccent"  Color="#FFFFFF" />
+
+  <!-- 描边 / 网格 -->
+  <SolidColorBrush x:Key="StrokeHairline" Color="#E3E8ED" />
+  <SolidColorBrush x:Key="StrokeStrong"   Color="#CFD6DD" />
+  <SolidColorBrush x:Key="GridLine"       Color="#E8ECF0" />
+  <SolidColorBrush x:Key="Baseline"       Color="#CFD6DD" />
+  <SolidColorBrush x:Key="RingTrack"      Color="#E9EDF1" />
+
+  <!-- 品牌强调色 -->
+  <SolidColorBrush x:Key="Accent"        Color="#2A78D6" />
+  <SolidColorBrush x:Key="AccentHover"   Color="#3A88E6" />
+  <SolidColorBrush x:Key="AccentPressed" Color="#1F5FAE" />
+  <SolidColorBrush x:Key="AccentSoft"    Color="#E7F0FB" />
+
+  <!-- 状态色（与深色主题同色相） -->
+  <SolidColorBrush x:Key="StatusGood"     Color="#0CA30C" />
+  <SolidColorBrush x:Key="StatusWarning"  Color="#FAB219" />
+  <SolidColorBrush x:Key="StatusCritical" Color="#D03B3B" />
+  <SolidColorBrush x:Key="StatusOffline"  Color="#98A2AE" />
+
+  <!-- 图表序列色（浅色表面专用步进） -->
+  <SolidColorBrush x:Key="Series1" Color="#2A78D6" />
+  <SolidColorBrush x:Key="Series2" Color="#EB6834" />
+  <SolidColorBrush x:Key="Series3" Color="#1BAF7A" />
+
+  <Color x:Key="ShadowColor">#64748B</Color>
+
+</ResourceDictionary>
