@@ -93,6 +93,8 @@ namespace ServerMonitor.ViewModels
             TestWebhookCommand = new RelayCommand(TestWebhook, () => !_webhookBusy);
             OpenLogDirectoryCommand = new RelayCommand(OpenLogDirectory);
             TestAiCommand = new RelayCommand(TestAi);
+            FetchAiModelsCommand = new RelayCommand(FetchAiModels);
+            AiModels = new ObservableCollection<string>();
 
             RecomputeSummary();
         }
@@ -300,6 +302,7 @@ namespace ServerMonitor.ViewModels
         public RelayCommand TestWebhookCommand { get; private set; }
         public RelayCommand OpenLogDirectoryCommand { get; private set; }
         public RelayCommand TestAiCommand { get; private set; }
+        public RelayCommand FetchAiModelsCommand { get; private set; }
 
         /// <summary>阈值示意图中"偏高"档的宽度占比（相对 100%）。</summary>
         public double WarnBandWidth
@@ -365,7 +368,13 @@ namespace ServerMonitor.ViewModels
             }
         }
 
-        /// <summary>模型名。故意不做成写死的下拉框——服务商改名的频率比程序发版高。</summary>
+        /// <summary>
+        /// 模型名。用可编辑下拉框：列表来自接口实际返回，也允许手填。
+        /// 刻意不写死可选值——服务商改名的频率比程序发版高得多。
+        ///
+        /// 只更新内存不落盘：绑定是 PropertyChanged 的，每敲一个字符写一次磁盘太浪费。
+        /// 落盘交给设置页的失焦与离开页面（PersistSettings）。
+        /// </summary>
         public string AiModel
         {
             get { return _config.Settings.AiModel; }
@@ -373,10 +382,12 @@ namespace ServerMonitor.ViewModels
             {
                 if (_config.Settings.AiModel == value) return;
                 _config.Settings.AiModel = value;
-                _config.SaveSettings();
                 Raise();
             }
         }
+
+        /// <summary>从接口拉到的可用模型名，供下拉框选择。</summary>
+        public ObservableCollection<string> AiModels { get; private set; }
 
         public int AiTimeoutSeconds
         {
@@ -452,6 +463,68 @@ namespace ServerMonitor.ViewModels
             {
                 AiStatus = "连接失败：" + reply.Error;
                 if (ShowMessage != null) ShowMessage("连接失败", reply.Error);
+            }
+        }
+
+        /// <summary>Task.Run 里不好用 out 参数，用这个小结构带出来。</summary>
+        private sealed class ModelListResult
+        {
+            public List<string> Models;
+            public string Error;
+        }
+
+        private static ModelListResult FetchModels(AppSettings settings)
+        {
+            string error;
+            List<string> models = AiClient.ListModels(settings, out error);
+            return new ModelListResult { Models = models, Error = error };
+        }
+
+        private async void FetchAiModels()
+        {
+            AppSettings settings = _config.Settings;
+
+            if (string.IsNullOrWhiteSpace(settings.AiApiKey))
+            {
+                AiStatus = "请先填写 API 密钥";
+                if (ShowMessage != null) ShowMessage("无法获取", "请先填写 API 密钥。");
+                return;
+            }
+
+            AiStatus = "正在获取模型列表…";
+
+            ModelListResult result = await Task.Run(() => FetchModels(settings));
+
+            if (result.Error != null)
+            {
+                AiStatus = "获取模型列表失败：" + result.Error;
+                if (ShowMessage != null) ShowMessage("获取失败", result.Error);
+                return;
+            }
+
+            AiModels.Clear();
+            foreach (string model in result.Models) AiModels.Add(model);
+
+            if (result.Models.Count == 0)
+            {
+                AiStatus = "接口没有返回任何模型";
+                return;
+            }
+
+            // 当前填的模型名不在列表里时提示一下——多半是对方改名了，或者拼错了
+            bool currentValid = result.Models.Exists(
+                m => string.Equals(m, settings.AiModel, StringComparison.OrdinalIgnoreCase));
+
+            AiStatus = currentValid
+                ? "已获取 " + result.Models.Count + " 个模型，当前选择有效"
+                : "已获取 " + result.Models.Count + " 个模型，当前填写的「" + settings.AiModel + "」不在其中";
+
+            if (!currentValid && ShowMessage != null)
+            {
+                ShowMessage("模型列表已更新",
+                    "接口返回 " + result.Models.Count + " 个可用模型：\n\n" +
+                    string.Join("\n", result.Models.ToArray()) +
+                    "\n\n当前填写的「" + settings.AiModel + "」不在其中，请从下拉框重新选择。");
             }
         }
 

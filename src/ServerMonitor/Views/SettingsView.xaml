@@ -365,12 +365,25 @@
 
             <StackPanel Grid.Column="1" Margin="10,0,0,0">
               <TextBlock Text="模型" Style="{StaticResource FieldLabel}" />
-              <TextBox Style="{StaticResource AppTextBox}"
-                       Text="{Binding AiModel, UpdateSourceTrigger=LostFocus}" />
+              <Grid>
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="*" />
+                  <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <!-- 可编辑下拉框：列表来自接口实际返回，也可以手填自定义名字 -->
+                <ComboBox Grid.Column="0" Style="{StaticResource AppComboBox}"
+                          IsEditable="True"
+                          ItemsSource="{Binding AiModels}"
+                          Text="{Binding AiModel, UpdateSourceTrigger=PropertyChanged}" />
+                <Button Grid.Column="1" Content="获取" Margin="8,0,0,0"
+                        Style="{StaticResource GhostButton}" Padding="13,7"
+                        ToolTip="从接口拉取当前可用的模型名（调用 GET /models）"
+                        Command="{Binding FetchAiModelsCommand}" />
+              </Grid>
             </StackPanel>
           </Grid>
           <TextBlock Style="{StaticResource FieldHint}"
-                     Text="走 OpenAI 兼容协议，DeepSeek 官方与内网自建的 vLLM / Ollama 都支持。模型名填可用的取值即可（DeepSeek 常用：deepseek-flash、deepseek-v4-pro）。" />
+                     Text="走 OpenAI 兼容协议，DeepSeek 官方与内网自建的 vLLM / Ollama 都支持。点「获取」可直接拉取对方当前支持的模型名；也可以手填——服务商改名比程序发版频繁得多。" />
 
           <Grid Margin="0,14,0,0">
             <Grid.ColumnDefinitions>

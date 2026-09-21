@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Net;
@@ -239,6 +240,72 @@ namespace ServerMonitor.Services
 
             return "接口返回 HTTP " + code + "（" + hint + "）" +
                    (string.IsNullOrEmpty(detail) ? string.Empty : "：" + detail);
+        }
+
+        /// <summary>
+        /// 拉取可用模型列表（OpenAI 兼容的 GET /models）。
+        ///
+        /// 有这个方法就不必把模型名写死在程序里：服务商改名是常事
+        /// （DeepSeek 一年内改过 deepseek-chat → deepseek-v4-flash → deepseek-flash），
+        /// 让用户点一下就能拿到当前真实可用的名字，比任何提示文案都可靠。
+        /// </summary>
+        public static List<string> ListModels(AppSettings settings, out string error)
+        {
+            error = null;
+            var models = new List<string>();
+
+            try
+            {
+                EnableModernTls();
+
+                string url = (settings.AiEndpoint ?? string.Empty).TrimEnd('/') + "/models";
+                var request = (HttpWebRequest)WebRequest.Create(url);
+                request.Method = "GET";
+                request.Accept = "application/json";
+                request.UserAgent = "ServerMonitor/1.0";
+                request.Timeout = settings.AiTimeoutSeconds * 1000;
+                request.ReadWriteTimeout = settings.AiTimeoutSeconds * 1000;
+                request.Headers["Authorization"] = "Bearer " + (settings.AiApiKey ?? string.Empty);
+
+                string responseText;
+                using (var response = (HttpWebResponse)request.GetResponse())
+                using (var reader = new StreamReader(response.GetResponseStream(), Encoding.UTF8))
+                {
+                    responseText = reader.ReadToEnd();
+                }
+
+                var root = JObject.Parse(responseText);
+                JToken data = root["data"];
+                if (data == null || data.Type != JTokenType.Array)
+                {
+                    error = "接口返回的内容里没有 data 字段，可能不是 OpenAI 兼容的实现";
+                    return models;
+                }
+
+                foreach (JToken item in (JArray)data)
+                {
+                    string id = item["id"] != null ? item["id"].ToString() : null;
+                    if (!string.IsNullOrWhiteSpace(id)) models.Add(id);
+                }
+
+                models.Sort(StringComparer.OrdinalIgnoreCase);
+
+                Logger.Info("AI", "已获取模型列表，共 " + models.Count + " 个：" +
+                                  string.Join(", ", models.ToArray()));
+                return models;
+            }
+            catch (WebException ex)
+            {
+                error = DescribeWebError(ex);
+                Logger.Warn("AI", "获取模型列表失败：" + error, ex);
+                return models;
+            }
+            catch (Exception ex)
+            {
+                error = ex.Message;
+                Logger.Warn("AI", "获取模型列表失败：" + ex.Message, ex);
+                return models;
+            }
         }
 
         /// <summary>

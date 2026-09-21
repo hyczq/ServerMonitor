@@ -402,6 +402,30 @@
     </Setter>
   </Style>
 
+  <!--
+    可编辑 ComboBox 内嵌的输入框。
+    刻意不带边框和内边距：外面已经有一层 ComboBox 的 Border 了，
+    再套一层会变成双层边框。
+  -->
+  <Style x:Key="ComboEditBox" TargetType="TextBox">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="BorderThickness" Value="0" />
+    <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
+    <Setter Property="CaretBrush" Value="{DynamicResource Accent}" />
+    <Setter Property="SelectionBrush" Value="{DynamicResource Accent}" />
+    <Setter Property="FontSize" Value="12.5" />
+    <Setter Property="Padding" Value="0" />
+    <Setter Property="VerticalContentAlignment" Value="Center" />
+    <Setter Property="TextOptions.TextFormattingMode" Value="Display" />
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="TextBox">
+          <ScrollViewer x:Name="PART_ContentHost" VerticalAlignment="Center" />
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+
   <Style x:Key="AppComboBox" TargetType="ComboBox">
     <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
     <Setter Property="Background" Value="{DynamicResource SurfaceSunken}" />
@@ -451,8 +475,13 @@
                               ContentStringFormat="{TemplateBinding SelectionBoxItemStringFormat}"
                               Margin="11,0,30,0" VerticalAlignment="Center" />
 
-            <!-- ComboBox 会按名字查找这个部件，即使不可编辑也要保留 -->
-            <TextBox x:Name="PART_EditableTextBox" Visibility="Collapsed" />
+            <!--
+              ComboBox 会按名字查找这个部件，即使不可编辑也要保留。
+              可见性交给下面的 IsEditable 触发器控制，这里不要写死 Collapsed——
+              写死了可编辑模式下就永远看不到输入框。
+            -->
+            <TextBox x:Name="PART_EditableTextBox" Style="{StaticResource ComboEditBox}"
+                     Margin="11,0,30,0" VerticalAlignment="Center" Visibility="Hidden" />
 
             <Popup x:Name="PART_Popup" AllowsTransparency="True" Focusable="False"
                    PopupAnimation="Fade" Placement="Bottom"
@@ -468,6 +497,11 @@
             </Popup>
           </Grid>
           <ControlTemplate.Triggers>
+            <!-- 可编辑模式下用内嵌输入框替换掉只读的内容展示 -->
+            <Trigger Property="IsEditable" Value="True">
+              <Setter TargetName="PART_EditableTextBox" Property="Visibility" Value="Visible" />
+              <Setter TargetName="ContentSite" Property="Visibility" Value="Hidden" />
+            </Trigger>
             <Trigger Property="IsEnabled" Value="False">
               <Setter Property="Opacity" Value="0.5" />
             </Trigger>
