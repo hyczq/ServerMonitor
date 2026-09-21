@@ -59,6 +59,14 @@ namespace ServerMonitor.Models
         [JsonProperty("aiApiKeyEnc")]
         public string AiApiKeyEncrypted { get; set; }
 
+        /// <summary>
+        /// 用 AI 把采集结果写成一段话，替代模板拼装的 Webhook 正文。
+        ///
+        /// 只换文案，不参与告警判断：发不发仍由阈值和 WebhookOnlyOnProblem 决定，
+        /// 生成失败会自动退回模板正文，不会漏推。
+        /// </summary>
+        public bool AiSummaryEnabled { get; set; }
+
         // ---------- 日志 ----------
 
         /// <summary>
@@ -121,6 +129,10 @@ namespace ServerMonitor.Models
             AiTimeoutSeconds = 30;
             AiApiKey = string.Empty;
 
+            // 默认关闭：开启后会把服务器名称、IP 和用量数据发到接口地址，
+            // 若填的是公网服务，这些内网信息就出网了。得让用户明确打开。
+            AiSummaryEnabled = false;
+
             LogLevel = "Info";
             LogRetentionDays = 14;
 
@@ -181,6 +193,9 @@ namespace ServerMonitor.Models
 
             // 没填密钥就不要保持"已启用"，否则每次调用都白报一次错
             if (string.IsNullOrWhiteSpace(AiApiKey)) AiEnabled = false;
+
+            // AI 关掉时摘要开关也不能留着，否则每次推送都会去调一次注定失败的接口
+            if (!AiEnabled) AiSummaryEnabled = false;
 
             if (LogRetentionDays < 1) LogRetentionDays = 1;
             if (LogRetentionDays > 3650) LogRetentionDays = 3650;

@@ -19,25 +19,34 @@ namespace ServerMonitor.Services
     /// </summary>
     internal static class WebhookNotifier
     {
-        /// <summary>按配置的渠道组装请求体。</summary>
-        public static string BuildPayload(IList<ServerCardSnapshot> servers, AppSettings settings)
+        /// <summary>
+        /// 按配置的渠道组装请求体。
+        /// </summary>
+        /// <param name="aiSummary">
+        /// AI 写的正文，为 null 时用模板拼装。
+        /// 只在 PushPlus 渠道替换正文；通用 JSON 渠道额外加一个 aiSummary 字段，
+        /// 不动原有结构化字段——对方的接口可能就是按那些字段解析的。
+        /// </param>
+        public static string BuildPayload(IList<ServerCardSnapshot> servers, AppSettings settings,
+                                          string aiSummary = null)
         {
             return settings.WebhookProvider == WebhookProvider.PushPlus
-                ? BuildPushPlusPayload(servers, settings)
-                : BuildGenericPayload(servers, settings);
+                ? BuildPushPlusPayload(servers, settings, aiSummary)
+                : BuildGenericPayload(servers, settings, aiSummary);
         }
 
         // ---------------------------------------------------------------
         // PushPlus（推送加）
         // ---------------------------------------------------------------
 
-        private static string BuildPushPlusPayload(IList<ServerCardSnapshot> servers, AppSettings settings)
+        private static string BuildPushPlusPayload(IList<ServerCardSnapshot> servers, AppSettings settings,
+                                                   string aiSummary)
         {
             var root = new JObject
             {
                 ["token"] = settings.WebhookToken ?? string.Empty,
                 ["title"] = BuildPushPlusTitle(servers, settings),
-                ["content"] = BuildPushPlusContent(servers),
+                ["content"] = aiSummary ?? BuildPushPlusContent(servers),
                 ["template"] = string.IsNullOrWhiteSpace(settings.WebhookTemplate)
                     ? "txt"
                     : settings.WebhookTemplate.Trim()
@@ -149,7 +158,8 @@ namespace ServerMonitor.Services
         /// 组装推送内容。字段名用英文，方便对接方的接口直接取用；
         /// 嵌套结构保持扁平，减少对方的解析工作。
         /// </summary>
-        private static string BuildGenericPayload(IList<ServerCardSnapshot> servers, AppSettings settings)
+        private static string BuildGenericPayload(IList<ServerCardSnapshot> servers, AppSettings settings,
+                                                  string aiSummary)
         {
             var online = servers.Where(s => s.Online).ToList();
 
@@ -208,6 +218,10 @@ namespace ServerMonitor.Services
                 });
             }
             root["servers"] = array;
+
+            // AI 写的正文单独放一个字段，不动上面的结构化数据——
+            // 对方的接口可能就是按那些字段解析的，替换掉会把人家的对接搞坏。
+            if (!string.IsNullOrEmpty(aiSummary)) root["aiSummary"] = aiSummary;
 
             return root.ToString(Formatting.Indented);
         }

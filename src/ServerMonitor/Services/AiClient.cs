@@ -59,8 +59,14 @@ namespace ServerMonitor.Services
         /// 失败时不抛异常，而是通过 <see cref="AiReply.Error"/> 返回原因——
         /// AI 是锦上添花的功能，出问题绝不能把采集、告警这些主流程带崩。
         /// </summary>
+        /// <param name="timeoutSeconds">
+        /// 覆盖配置里的超时。传 0 或负数则用 <see cref="AppSettings.AiTimeoutSeconds"/>。
+        /// 给这个口子是因为不同调用方的等待成本不一样：设置页的「测试连接」能等 30 秒，
+        /// 而告警摘要挡在推送前面，必须更快失败。
+        /// </param>
         public static AiReply Chat(AppSettings settings, string systemPrompt,
-                                   string userPrompt, int maxTokens)
+                                   string userPrompt, int maxTokens,
+                                   int timeoutSeconds = 0)
         {
             var reply = new AiReply();
             var sw = Stopwatch.StartNew();
@@ -69,14 +75,16 @@ namespace ServerMonitor.Services
             {
                 EnableModernTls();
 
+                int timeout = timeoutSeconds > 0 ? timeoutSeconds : settings.AiTimeoutSeconds;
+
                 string url = (settings.AiEndpoint ?? string.Empty).TrimEnd('/') + "/chat/completions";
                 var request = (HttpWebRequest)WebRequest.Create(url);
                 request.Method = "POST";
                 request.ContentType = "application/json";
                 request.Accept = "application/json";
                 request.UserAgent = "ServerMonitor/1.0";
-                request.Timeout = settings.AiTimeoutSeconds * 1000;
-                request.ReadWriteTimeout = settings.AiTimeoutSeconds * 1000;
+                request.Timeout = timeout * 1000;
+                request.ReadWriteTimeout = timeout * 1000;
                 request.Headers["Authorization"] = "Bearer " + (settings.AiApiKey ?? string.Empty);
 
                 var body = new JObject
@@ -166,6 +174,28 @@ namespace ServerMonitor.Services
                     ? usage["prompt_tokens"].Value<int>() : 0;
                 reply.CompletionTokens = usage["completion_tokens"] != null
                     ? usage["completion_tokens"].Value<int>() : 0;
+            }
+
+            if (string.IsNullOrEmpty(reply.Content))
+            {
+                // 正文为空时要说清是哪种空，否则日志里只有一句"空内容"，无从排查。
+                //
+                // 实测踩到过：推理型模型会先把输出预算花在思考上，思考没结束就撞到
+                // max_tokens，于是 reasoning_content 有内容而 content 是空的。
+                // 思考内容不能拿来当答案用，但要能识别出这种情况——
+                // 它意味着"调大 max_tokens 就能好"，而不是"接口有问题"。
+                JToken finish = choices[0]["finish_reason"];
+                string finishReason = finish != null ? finish.ToString() : null;
+
+                bool hasReasoning = message != null &&
+                                    message["reasoning_content"] != null &&
+                                    !string.IsNullOrWhiteSpace(message["reasoning_content"].ToString());
+
+                reply.Error = hasReasoning || finishReason == "length"
+                    ? "输出预算被思考过程耗尽（finish_reason=" + (finishReason ?? "未知") +
+                      "），没产出正文。请调大 max_tokens，或改用不带思考的模型"
+                    : "接口返回的正文为空（finish_reason=" + (finishReason ?? "未知") + "）";
+                return;
             }
 
             reply.Success = true;

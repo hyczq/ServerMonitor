@@ -351,7 +351,11 @@ namespace ServerMonitor.ViewModels
                 if (_config.Settings.AiEnabled == value) return;
                 _config.Settings.AiEnabled = value;
                 _config.SaveSettings();
+
+                // Normalize 会顺手把摘要开关一起关掉，这里得通知界面
+                // 重新取值，否则复选框还停在勾选状态，与配置不一致。
                 Raise();
+                Raise("AiSummaryEnabled");
                 Logger.Info("AI", value ? "已启用" : "已停用");
             }
         }
@@ -414,6 +418,25 @@ namespace ServerMonitor.ViewModels
                 if (_config.Settings.AiApiKey == value) return;
                 _config.Settings.AiApiKey = value;
                 Raise();
+            }
+        }
+
+        /// <summary>
+        /// 用 AI 生成 Webhook 推送的正文。
+        ///
+        /// 只换文案，不参与告警判断：发不发仍由 Threshold 和 WebhookOnlyOnProblem 决定，
+        /// 生成失败自动退回模板正文。所以这个开关最坏只会让消息难看，不会漏推。
+        /// </summary>
+        public bool AiSummaryEnabled
+        {
+            get { return _config.Settings.AiSummaryEnabled; }
+            set
+            {
+                if (_config.Settings.AiSummaryEnabled == value) return;
+                _config.Settings.AiSummaryEnabled = value;
+                _config.SaveSettings();
+                Raise();
+                Logger.Info("AI", value ? "已开启告警摘要" : "已关闭告警摘要");
             }
         }
 
@@ -925,19 +948,32 @@ namespace ServerMonitor.ViewModels
             {
                 // 取配置的副本，避免推送过程中用户改设置导致读到半新半旧的值
                 AppSettings settings = _config.Settings;
-                string json = WebhookNotifier.BuildPayload(snapshots, settings);
+
+                // AI 摘要只是换一种写法：发不发上面已经判过了，这里失败也照样推送。
+                // Compose 返回 null 表示生成失败（原因已写日志），退回模板正文。
+                string aiSummary = settings.AiSummaryEnabled
+                    ? AiSummary.Compose(snapshots, settings)
+                    : null;
+
+                string json = WebhookNotifier.BuildPayload(snapshots, settings, aiSummary);
 
                 string error;
                 bool ok = WebhookNotifier.Send(settings.WebhookUrl, json, settings, out error);
 
                 string stamp = DateTime.Now.ToString("HH:mm:ss");
 
+                // 把正文来源写进结果里，否则"AI 没生效"和"AI 生效了但内容差"
+                // 这两种情况从界面上分不出来
+                string source = aiSummary != null ? "AI 摘要" : "模板";
+
                 if (ok)
                 {
                     Logger.Info("Webhook", "推送成功 " + settings.WebhookProvider +
-                                           " 渠道 目标=" + settings.WebhookUrl +
+                                           " 渠道 正文=" + source +
+                                           " 目标=" + settings.WebhookUrl +
                                            " 服务器数=" + snapshots.Count);
-                    return "推送成功（" + stamp + "，" + snapshots.Count + " 台服务器）";
+                    return "推送成功（" + stamp + "，" + snapshots.Count +
+                           " 台服务器，正文：" + source + "）";
                 }
 
                 Logger.Warn("Webhook", "推送失败 目标=" + settings.WebhookUrl +

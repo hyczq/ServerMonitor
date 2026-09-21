@@ -409,6 +409,19 @@
 
           <Border Style="{StaticResource Hairline}" Margin="0,16,0,14" />
 
+          <CheckBox Style="{StaticResource AppCheckBox}"
+                    Content="用 AI 生成告警正文"
+                    IsEnabled="{Binding AiEnabled}"
+                    IsChecked="{Binding AiSummaryEnabled, Mode=TwoWay}" />
+          <TextBlock Style="{StaticResource FieldHint}"
+                     Text="开启后，Webhook 推送的正文改由 AI 根据本次采集数据写成一段人话，替代模板拼装的正文；通用 JSON 渠道会额外多一个 aiSummary 字段，原有结构化字段不变。生成失败会自动退回模板正文，不会漏推。发不推送仍由阈值和上面的「仅异常时推送」决定，AI 不参与这个判断。" />
+
+          <TextBlock Style="{StaticResource FieldHint}"
+                     Foreground="{DynamicResource StatusWarning}"
+                     Text="注意：开启后会把服务器名称、IP、系统类型和用量数据发送到上面填写的接口地址。若填的是公网服务，这些内网信息会离开内网；有合规要求时请改指向内网自建的兼容接口。" />
+
+          <Border Style="{StaticResource Hairline}" Margin="0,16,0,14" />
+
           <Grid>
             <Grid.ColumnDefinitions>
               <ColumnDefinition Width="*" />
