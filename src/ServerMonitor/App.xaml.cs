@@ -13,6 +13,7 @@ namespace ServerMonitor
     {
         private ConfigStore _config;
         private HistoryStore _history;
+        private DiskTrendStore _diskTrend;
         private MainViewModel _viewModel;
 
         protected override void OnStartup(StartupEventArgs e)
@@ -49,10 +50,14 @@ namespace ServerMonitor
             _history.Load();
             Logger.Debug("历史数据已加载");
 
+            // 磁盘容量趋势的日级归档。与历史库一样：启动时加载，退出时落盘。
+            _diskTrend = new DiskTrendStore(dataDirectory);
+            _diskTrend.Load();
+
             ThemeManager.Apply(_config.Settings.DarkTheme);
             Logger.Debug("主题已应用：" + (_config.Settings.DarkTheme ? "深色" : "浅色"));
 
-            _viewModel = new MainViewModel(_config, _history);
+            _viewModel = new MainViewModel(_config, _history, _diskTrend);
 
             var window = new MainWindow(_viewModel);
             MainWindow = window;

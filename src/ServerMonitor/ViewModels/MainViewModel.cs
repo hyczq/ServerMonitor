@@ -19,6 +19,7 @@ namespace ServerMonitor.ViewModels
     {
         private readonly ConfigStore _config;
         private readonly HistoryStore _history;
+        private readonly DiskTrendStore _diskTrend;
         private readonly MonitorEngine _engine;
 
         private string _searchText = string.Empty;
@@ -60,10 +61,11 @@ namespace ServerMonitor.ViewModels
             private set { SetProperty(ref _webhookStatus, value); }
         }
 
-        public MainViewModel(ConfigStore config, HistoryStore history)
+        public MainViewModel(ConfigStore config, HistoryStore history, DiskTrendStore diskTrend)
         {
             _config = config;
             _history = history;
+            _diskTrend = diskTrend;
 
             Servers = new ObservableCollection<ServerCardViewModel>();
             foreach (ServerConfig server in config.Servers)
@@ -77,7 +79,7 @@ namespace ServerMonitor.ViewModels
             History = new HistoryViewModel(config, history);
             Logs = new LogViewModel();
 
-            _engine = new MonitorEngine(config, history);
+            _engine = new MonitorEngine(config, history, diskTrend);
             _engine.SnapshotReady += OnSnapshotReady;
             _engine.CycleCompleted += OnCycleCompleted;
 
@@ -1070,6 +1072,7 @@ namespace ServerMonitor.ViewModels
 
             _engine.Forget(card.Id);
             _history.RemoveServer(card.Id);
+            _diskTrend.RemoveServer(card.Id);
             _config.Servers.Remove(card.Config);
             _config.SaveServers();
             Servers.Remove(card);
@@ -1278,6 +1281,7 @@ namespace ServerMonitor.ViewModels
             _engine.SnapshotReady -= OnSnapshotReady;
             _engine.CycleCompleted -= OnCycleCompleted;
             _engine.Dispose();
+            _diskTrend.Flush();
             _history.Flush();
         }
     }

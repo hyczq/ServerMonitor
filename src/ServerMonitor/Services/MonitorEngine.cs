@@ -17,6 +17,7 @@ namespace ServerMonitor.Services
     {
         private readonly ConfigStore _config;
         private readonly HistoryStore _history;
+        private readonly DiskTrendStore _diskTrend;
         private readonly ConcurrentDictionary<string, ServerSnapshot> _latest =
             new ConcurrentDictionary<string, ServerSnapshot>(StringComparer.Ordinal);
 
@@ -42,10 +43,11 @@ namespace ServerMonitor.Services
 
         public bool IsRunning { get { return _loop != null && !_loop.IsCompleted; } }
 
-        public MonitorEngine(ConfigStore config, HistoryStore history)
+        public MonitorEngine(ConfigStore config, HistoryStore history, DiskTrendStore diskTrend)
         {
             _config = config;
             _history = history;
+            _diskTrend = diskTrend;
         }
 
         public ServerSnapshot GetLatest(string serverId)
@@ -255,6 +257,10 @@ namespace ServerMonitor.Services
 
                 _latest[cfg.Id] = snapshot;
                 _history.Record(snapshot);
+
+                // 与历史库并列记录。刻意不受"容量预警"开关影响——关掉预测时
+                // 也要继续积累，否则用户开启后还要再等 5 天才有可用的曲线。
+                _diskTrend.Record(snapshot);
 
                 EventHandler<ServerSnapshot> handler = SnapshotReady;
                 if (handler != null) handler(this, snapshot);
