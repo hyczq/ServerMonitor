@@ -98,7 +98,18 @@ namespace ServerMonitor.Services
             // 密钥与服务器口令一样用 DPAPI 加密后落盘，不存明文
             Settings.AiApiKeyEncrypted = Protect(Settings.AiApiKey);
 
-            WriteJson(_settingsPath, Settings);
+            // 这里不能 rethrow：调用点是每个设置项的 setter，跑在 UI 线程上，而 WriteJson
+            // 里的 File.Replace 在杀毒/备份程序占用目标文件时会抛 IOException，冒泡出去就是
+            // WPF 绑定异常。设置没存上是问题，但不该掀掉程序——记 Error 让日志能查到原因。
+            // 挡在这一处而不是包 9 个 setter：新增 8 个设置项会把暴露面从 1 处变成 9 处。
+            try
+            {
+                WriteJson(_settingsPath, Settings);
+            }
+            catch (Exception ex)
+            {
+                Logger.Error("配置", "设置保存失败：" + ex.Message, ex);
+            }
         }
 
         // ---------- DPAPI ----------

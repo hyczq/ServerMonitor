@@ -142,8 +142,14 @@ namespace ServerMonitor.Services
             // 采样很频繁，落盘限流到 20 秒一次，避免频繁磁盘写入
             if (!force && (DateTime.UtcNow - _lastFlushUtc).TotalSeconds < 20) return;
 
+            // 只写"今天"或"确实有数据"的日期。GetOrLoadDay 对任意日期都会建缓存
+            // （文件不存在也照建），所以在历史页翻一个已被 PruneRawFiles 清掉的旧日期，
+            // 缓存里就多一个空字典，这里全量重写会凭空生成一个空的 history\<旧日期>.json；
+            // 而清理只在启动和改保留期时跑，这个垃圾文件会活一整个会话。
+            string today = DateTime.Today.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
             foreach (var pair in _days)
             {
+                if (pair.Value.Count == 0 && pair.Key != today) continue;
                 WriteDay(pair.Key, pair.Value);
             }
 
