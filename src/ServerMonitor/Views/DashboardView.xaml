@@ -8,13 +8,15 @@
   <UserControl.Resources>
 
     <!-- ============ 磁盘行 ============
-         每个分区两行：
+         每个分区最多三行：
            第一行  盘符（主文字）+ 已用/总容量（静音）—— 容量原来是悬浮提示，信息藏得太深
            第二行  用量条 + 百分比（右对齐，等宽数字，多行纵向对齐）
+           第三行  容量趋势标注（"按当前增速约 25 天后写满"）；没有预测时整行收起，行高不变
          盘符用主文字色而非静音色：在 Windows 上 C:/D: 才是识别分区的主要依据。 -->
     <DataTemplate x:Key="DiskRowTemplate">
       <Grid Margin="0,0,0,10">
         <Grid.RowDefinitions>
+          <RowDefinition Height="Auto" />
           <RowDefinition Height="Auto" />
           <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
@@ -46,6 +48,15 @@
                             ConverterParameter=short}"
                      Style="{StaticResource NumericText}" FontSize="11.5" />
         </Grid>
+
+        <!-- 第三行：容量趋势。ForecastText 为空时 StringToVis 返回 Collapsed，
+             整行消失、行高不变——没有预测的分区看起来和从前一模一样。 -->
+        <TextBlock Grid.Row="2" Margin="0,4,0,0"
+                   Text="{Binding ForecastText}"
+                   FontSize="11" TextTrimming="CharacterEllipsis"
+                   Foreground="{DynamicResource TextMuted}"
+                   Visibility="{Binding ForecastText,
+                               Converter={StaticResource StringToVis}}" />
       </Grid>
     </DataTemplate>
 

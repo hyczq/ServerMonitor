@@ -265,6 +265,72 @@ namespace ServerMonitor.Services
             return text;
         }
 
+        /// <summary>
+        /// 取某台服务器每个挂载点的逐日序列，供容量预测用。
+        ///
+        /// 返回的是**副本**：采集线程随时在改 _servers 里的对象，
+        /// 把活引用交出去会重演"集合已修改"直接结束进程的老问题。
+        ///
+        /// 只返回**已完成的天**。今天这一天的值还在涨，放进拟合会让斜率全天
+        /// 抬升、午夜归零，预测在阈值线上下反复跳。今天的现状由调用方用实时
+        /// 快照的当前值传进 DiskForecast。
+        /// </summary>
+        internal Dictionary<string, List<DiskTrendPoint>> GetServerSeries(string serverId)
+        {
+            var result = new Dictionary<string, List<DiskTrendPoint>>(StringComparer.Ordinal);
+            if (string.IsNullOrEmpty(serverId)) return result;
+
+            string today = DateTime.Today.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+
+            lock (_gate)
+            {
+                Dictionary<string, DiskMountSeries> mounts;
+                if (!_servers.TryGetValue(serverId, out mounts)) return result;
+
+                foreach (var mount in mounts)
+                {
+                    DiskMountSeries series = mount.Value;
+                    if (series == null || series.Days == null) continue;
+
+                    var points = new List<DiskTrendPoint>();
+                    foreach (var day in series.Days)
+                    {
+                        // 今天的记录还在增长，由调用方用实时值代替
+                        if (string.Equals(day.Key, today, StringComparison.Ordinal)) continue;
+
+                        DiskTrendDay value = day.Value;
+                        if (value == null || value.Total <= 0) continue;
+
+                        DateTime date;
+                        if (!DateTime.TryParseExact(day.Key, "yyyy-MM-dd",
+                                CultureInfo.InvariantCulture, DateTimeStyles.None, out date))
+                        {
+                            continue;   // 键不是合法日期就当这条不存在，不影响别的天
+                        }
+
+                        points.Add(new DiskTrendPoint
+                        {
+                            Date = date,
+                            UsedBytes = value.Used,
+                            TotalBytes = value.Total
+                        });
+                    }
+
+                    if (points.Count == 0) continue;
+
+                    points.Sort(CompareByDate);
+                    result[mount.Key] = points;
+                }
+            }
+
+            return result;
+        }
+
+        private static int CompareByDate(DiskTrendPoint a, DiskTrendPoint b)
+        {
+            return a.Date.CompareTo(b.Date);
+        }
+
         private void FlushIfDue(bool force)
         {
             if (!_dirty) return;

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -1180,6 +1181,9 @@ namespace ServerMonitor.ViewModels
                     s => string.Equals(s.Id, snapshot.ServerId, StringComparison.Ordinal));
                 if (card == null) return;
 
+                // 趋势标注要在 Apply 之前下发：Apply 会重建磁盘行，行里的
+                // ForecastText 只在重建那一刻查表，晚一步就要再等一轮采集
+                card.SetForecasts(BuildForecastMap(card, snapshot));
                 card.Apply(snapshot);
 
                 // 汇总指标节流到每 2 秒算一次，避免几十台服务器时频繁全量重算
@@ -1189,6 +1193,52 @@ namespace ServerMonitor.ViewModels
                     RecomputeSummary();
                 }
             }));
+        }
+
+        /// <summary>
+        /// 算出某台服务器每个挂载点的趋势标注文案。
+        ///
+        /// 外推基准用实时快照的当前用量，拟合只用已完成的天——今天的值还在涨，
+        /// 放进拟合会让斜率全天抬升、午夜归零（见 DiskTrendStore.GetServerSeries）。
+        /// </summary>
+        private Dictionary<string, string> BuildForecastMap(ServerCardViewModel card, ServerSnapshot snapshot)
+        {
+            var map = new Dictionary<string, string>(StringComparer.Ordinal);
+            if (!_config.Settings.DiskForecastEnabled) return map;
+            if (snapshot == null || !snapshot.Online || snapshot.Disks == null) return map;
+
+            Dictionary<string, List<DiskTrendPoint>> series = _diskTrend.GetServerSeries(card.Id);
+            if (series.Count == 0) return map;
+
+            foreach (DiskUsage disk in snapshot.Disks)
+            {
+                string key = DiskTrendStore.NormalizeMount(disk.Mount);
+                if (key.Length == 0) continue;
+
+                List<DiskTrendPoint> points;
+                if (!series.TryGetValue(key, out points)) continue;
+
+                DiskForecastResult result = DiskForecast.Evaluate(
+                    points, disk.UsedBytes, disk.TotalBytes, _config.Settings);
+
+                // 每一步判断都留痕：这既是"为什么说 25 天"的唯一答案，
+                // 也是排查"为什么这个分区没有标注"的第一手线索。
+                Logger.Debug("磁盘预测",
+                    "服务器=" + card.Name +
+                    " 分区=" + key +
+                    " 有效天=" + result.DaysUsed +
+                    " 增速=" + result.BytesPerDay.ToString("0", CultureInfo.InvariantCulture) + "B/天" +
+                    " R2=" + result.R2.ToString("0.000", CultureInfo.InvariantCulture) +
+                    " 预计=" + (double.IsNaN(result.DaysToFull)
+                        ? "-"
+                        : result.DaysToFull.ToString("0.0", CultureInfo.InvariantCulture) + "天") +
+                    " 级别=" + result.Level +
+                    " 原因=" + (result.Reason.Length == 0 ? "采用" : result.Reason));
+
+                if (result.Text.Length > 0) map[key] = result.Text;
+            }
+
+            return map;
         }
 
         private void OnCycleCompleted(object sender, EventArgs e)

@@ -67,6 +67,25 @@ namespace ServerMonitor.Models
         /// </summary>
         public bool AiSummaryEnabled { get; set; }
 
+        // ---------- 容量趋势预警 ----------
+
+        /// <summary>
+        /// 是否在卡片上标注"还有几天写满"。
+        ///
+        /// 纯本地计算：不出网、不调用 AI、不依赖 Webhook，所以默认打开。
+        /// 关掉只是不标注，每日用量照常记录——否则重新打开还要再等 5 天数据。
+        /// </summary>
+        public bool DiskForecastEnabled { get; set; }
+
+        /// <summary>预计写满天数小于该值即在卡片上标注（观察）。</summary>
+        public int DiskForecastWarnDays { get; set; }
+
+        /// <summary>
+        /// 预计写满天数小于该值视为紧急。
+        /// 判定还要求 14 天窗口与近 7 天窗口方向一致，避免半夜误报。
+        /// </summary>
+        public int DiskForecastCriticalDays { get; set; }
+
         // ---------- 日志 ----------
 
         /// <summary>
@@ -133,6 +152,11 @@ namespace ServerMonitor.Models
             // 若填的是公网服务，这些内网信息就出网了。得让用户明确打开。
             AiSummaryEnabled = false;
 
+            // 默认打开：纯本地计算，不出网、不调用 AI，没有隐私代价
+            DiskForecastEnabled = true;
+            DiskForecastWarnDays = 30;
+            DiskForecastCriticalDays = 7;
+
             LogLevel = "Info";
             LogRetentionDays = 14;
 
@@ -196,6 +220,17 @@ namespace ServerMonitor.Models
 
             // AI 关掉时摘要开关也不能留着，否则每次推送都会去调一次注定失败的接口
             if (!AiEnabled) AiSummaryEnabled = false;
+
+            // 容量预测纯本地计算，不跟着 AI 开关走
+            if (DiskForecastWarnDays < 1) DiskForecastWarnDays = 1;
+            if (DiskForecastWarnDays > 365) DiskForecastWarnDays = 365;
+
+            // 紧急线不能宽于观察线，否则"紧急"永远评不上，卡片文案也会自相矛盾
+            if (DiskForecastCriticalDays < 1) DiskForecastCriticalDays = 1;
+            if (DiskForecastCriticalDays > DiskForecastWarnDays)
+            {
+                DiskForecastCriticalDays = DiskForecastWarnDays;
+            }
 
             if (LogRetentionDays < 1) LogRetentionDays = 1;
             if (LogRetentionDays > 3650) LogRetentionDays = 3650;

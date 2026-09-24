@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using ServerMonitor.Converters;
 using ServerMonitor.Models;
+using ServerMonitor.Services;
 
 namespace ServerMonitor.ViewModels
 {
@@ -15,6 +16,14 @@ namespace ServerMonitor.ViewModels
         public HealthLevel Level { get; set; }
         public double TotalBytes { get; set; }
         public double UsedBytes { get; set; }
+
+        /// <summary>
+        /// 容量趋势标注（"按当前增速约 25 天后写满"）。
+        ///
+        /// 空串表示这个分区没有预测，模板里由 StringToVis 收起整行，
+        /// 因此无预测的行高度与从前完全一致。
+        /// </summary>
+        public string ForecastText { get; set; }
 
         public string UsageText
         {
@@ -49,6 +58,17 @@ namespace ServerMonitor.ViewModels
         private string _loadText = "--";
         private string _memText = "--";
         private string _diskText = "--";
+
+        /// <summary>
+        /// 归一化挂载点 -> 趋势标注文案（"按当前增速约 25 天后写满"）。
+        ///
+        /// 不能在算完之后把文案推进 DiskRowViewModel：Apply 每个采集周期都
+        /// Disks.Clear() 重建，推进去的东西下一轮就没了。改成在 Apply 里查表填写。
+        ///
+        /// 只在界面线程整体换引用（SetForecasts 紧挨着 Apply 调用），
+        /// 不存在跨线程改 WPF 绑定对象的问题。
+        /// </summary>
+        private Dictionary<string, string> _forecastByMount;
 
         public ServerConfig Config { get; private set; }
 
@@ -266,6 +286,28 @@ namespace ServerMonitor.ViewModels
             Raise("ProtocolLabel");
         }
 
+        /// <summary>
+        /// 下发容量趋势标注。键是归一化挂载点（DiskTrendStore.NormalizeMount），
+        /// 值是要显示的一行字；表里没有的挂载点不标注。
+        ///
+        /// 整份换引用，下一次 Apply 重建磁盘行时生效（调用方紧挨在 Apply 前调用）。
+        /// </summary>
+        public void SetForecasts(Dictionary<string, string> map)
+        {
+            _forecastByMount = map;
+        }
+
+        /// <summary>查某个挂载点的标注，没有就返回空串（模板据此收起整行）。</summary>
+        private string LookupForecast(string mount)
+        {
+            Dictionary<string, string> map = _forecastByMount;
+            if (map == null || map.Count == 0) return string.Empty;
+
+            string text;
+            if (map.TryGetValue(DiskTrendStore.NormalizeMount(mount), out text)) return text;
+            return string.Empty;
+        }
+
         public void Apply(ServerSnapshot snapshot)
         {
             if (snapshot == null) return;
@@ -316,7 +358,8 @@ namespace ServerMonitor.ViewModels
                     Percent = disk.UsedPercent,
                     Level = Formats.Classify(disk.UsedPercent, _settings),
                     TotalBytes = disk.TotalBytes,
-                    UsedBytes = disk.UsedBytes
+                    UsedBytes = disk.UsedBytes,
+                    ForecastText = LookupForecast(disk.Mount)
                 };
                 Disks.Add(row);
                 if (TopDisks.Count < VisibleDiskCount) TopDisks.Add(row);
