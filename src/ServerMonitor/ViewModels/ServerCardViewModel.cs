@@ -83,16 +83,9 @@ namespace ServerMonitor.ViewModels
         {
             Config = config;
             _settings = settings;
-            CpuHistory = new ObservableCollection<double>();
-            MemHistory = new ObservableCollection<double>();
-            DiskHistory = new ObservableCollection<double>();
             Disks = new ObservableCollection<DiskRowViewModel>();
             TopDisks = new ObservableCollection<DiskRowViewModel>();
         }
-
-        public ObservableCollection<double> CpuHistory { get; private set; }
-        public ObservableCollection<double> MemHistory { get; private set; }
-        public ObservableCollection<double> DiskHistory { get; private set; }
 
         /// <summary>全部挂载点，按用量降序。</summary>
         public ObservableCollection<DiskRowViewModel> Disks { get; private set; }
@@ -369,10 +362,6 @@ namespace ServerMonitor.ViewModels
             Raise("MoreDisksTooltip");
             Raise("HasMoreDisks");
 
-            AppendHistory(CpuHistory, snapshot.CpuPercent);
-            AppendHistory(MemHistory, snapshot.MemPercent);
-            AppendHistory(DiskHistory, snapshot.DiskPercent);
-
             OverallLevel = Formats.Worst(CpuLevel, MemLevel, DiskLevel);
 
             Raise("CpuLevel");
@@ -384,12 +373,5 @@ namespace ServerMonitor.ViewModels
             Raise("OverallLevelText");
         }
 
-        private void AppendHistory(ObservableCollection<double> target, double value)
-        {
-            target.Add(Math.Round(value, 1));
-
-            int limit = _settings.SparklinePoints;
-            while (target.Count > limit) target.RemoveAt(0);
-        }
     }
 }

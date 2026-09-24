@@ -224,19 +224,6 @@
             </StackPanel>
           </Grid>
 
-          <!-- CPU 走势 -->
-          <Border Style="{StaticResource Hairline}" Margin="0,12,0,0" />
-          <Grid Margin="0,10,0,0">
-            <Grid.ColumnDefinitions>
-              <ColumnDefinition Width="*" />
-              <ColumnDefinition Width="Auto" />
-            </Grid.ColumnDefinitions>
-            <controls:Sparkline Grid.Column="0" Height="38"
-                                Values="{Binding CpuHistory}" SeriesKey="Series1" />
-            <TextBlock Grid.Column="1" Text="CPU 走势" Margin="10,0,0,0"
-                       VerticalAlignment="Bottom" Style="{StaticResource CaptionText}" />
-          </Grid>
-
           <!-- 磁盘明细 -->
           <Border Style="{StaticResource Hairline}" Margin="0,12,0,0" />
           <ItemsControl ItemsSource="{Binding TopDisks}" Margin="0,10,0,0"
