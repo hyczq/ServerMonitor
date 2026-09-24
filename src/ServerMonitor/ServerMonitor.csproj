@@ -15,11 +15,15 @@
     <RootNamespace>ServerMonitor</RootNamespace>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <!-- 程序图标：exe 文件图标 + 窗口/任务栏图标。
-         图标由 tools\make-icon.ps1 生成，改图案后重跑该脚本即可。 -->
+         图标由 build\make-icon.ps1 生成，改图案后重跑该脚本即可。 -->
     <ApplicationIcon>app.ico</ApplicationIcon>
     <PlatformTarget>AnyCPU</PlatformTarget>
     <Prefer32Bit>false</Prefer32Bit>
     <DebugType>pdbonly</DebugType>
+    <!-- 不生成 ServerMonitor.exe.config（SDK 默认会塞一个只含 supportedRuntime
+         的 174 字节文件）。没有它照样在 .NET Framework 4.5+ 上按 v4 运行时启动，
+         部署时就能只拷一个 exe。需要 appSettings / bindingRedirect 时把它改回 true。 -->
+    <GenerateSupportedRuntime>false</GenerateSupportedRuntime>
     <SatelliteResourceLanguages>zh-Hans;en</SatelliteResourceLanguages>
     <NoWarn>$(NoWarn);CS1591</NoWarn>
   </PropertyGroup>
@@ -28,6 +32,13 @@
     <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3" PrivateAssets="all" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
     <PackageReference Include="SSH.NET" Version="2020.0.2" />
+
+    <!-- 仅构建期使用：把上面这些依赖的 IL 合并进 exe，详见文件末尾的合并目标。
+         GeneratePathProperty 会生成 $(PkgILRepack_MSBuild_Task)，指向包目录，
+         合并目标要调用包里的 tools\ilrepack.exe。 -->
+    <PackageReference Include="ILRepack.MSBuild.Task" Version="2.0.13" GeneratePathProperty="true">
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
 
     <!-- 仅编译期引用；运行期绑定到目标机 GAC 中的 PowerShell 程序集 -->
     <PackageReference Include="Microsoft.PowerShell.5.ReferenceAssemblies" Version="1.1.0">
@@ -46,5 +57,45 @@
     <!-- 作为资源嵌入，供窗口 Icon 属性引用 -->
     <Resource Include="app.ico" />
   </ItemGroup>
+
+  <!-- ==================================================================
+       Release 单文件打包
+
+       编译结束后，把第三方依赖（Newtonsoft.Json、Renci.SshNet）的 IL
+       合并进 ServerMonitor.exe，并删掉 bin 里散落的 dll，部署时只需
+       拷一个 exe。
+
+       两个刻意的选择：
+
+       1. 合并输入取 obj 里"刚编译出来的 exe"，而不是 bin 下已经合并过
+          的 exe，所以本目标重复执行也不会把结果再合并一遍（幂等）。
+       2. 只在白名单里的依赖会被合并。框架程序集（System.*）绝不能合并：
+          运行期还要从 GAC 加载 PowerShell 程序集，重复的类型会导致
+          转换失败。
+
+       Debug 配置不合并，便于调试。
+       ================================================================== -->
+  <Target Name="MergeDependenciesIntoExe" AfterTargets="Build" Condition="'$(Configuration)' == 'Release'">
+    <ItemGroup>
+      <_DependencyToMerge Include="@(ReferenceCopyLocalPaths)"
+                          Condition="'%(Filename)%(Extension)' == 'Newtonsoft.Json.dll' Or '%(Filename)%(Extension)' == 'Renci.SshNet.dll'" />
+      <_MergeInput Include="$(IntermediateOutputPath)$(TargetFileName)" />
+      <_MergeInput Include="@(_DependencyToMerge)" />
+    </ItemGroup>
+
+    <Error Condition="'@(_DependencyToMerge)' == ''"
+           Text="没有找到要合并的依赖 dll（Newtonsoft.Json / Renci.SshNet），合并目标无法执行。" />
+    <Error Condition="'$(PkgILRepack_MSBuild_Task)' == ''"
+           Text="ILRepack 包路径为空（PkgILRepack_MSBuild_Task）。先跑 dotnet restore 再构建。" />
+
+    <!-- 用 - 前缀而不是 / 前缀，避免路径被 shell 误解析；不传 /lib:：
+         ilrepack 会从各输入程序集所在目录和 GAC 里找引用，实测够用 -->
+    <Exec Command="&quot;$(PkgILRepack_MSBuild_Task)\tools\ilrepack.exe&quot; -out:&quot;$(TargetPath)&quot; -internalize -parallel @(_MergeInput->'&quot;%(FullPath)&quot;', ' ')"
+          StandardOutputImportance="normal" />
+
+    <!-- bin 里只剩 exe。增量构建时 MSBuild 会把 dll 重新拷回来，再被这里删掉 -->
+    <Message Importance="high" Text="已合并为单文件：$(TargetPath)" />
+    <Delete Files="@(_DependencyToMerge->'$(TargetDir)%(Filename)%(Extension)')" />
+  </Target>
 
 </Project>

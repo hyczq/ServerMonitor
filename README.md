@@ -9,6 +9,8 @@
 
 ![总览](docs/screenshot-overview.png)
 
+> 只想快点用起来？直接看 **[使用手册](docs/使用手册.md)**。本文件重点讲设计与取舍。
+
 ---
 
 ## 一、快速开始
@@ -18,7 +20,7 @@
 在**装有 .NET SDK 的机器**上（开发机）执行：
 
 ```cmd
-build.cmd
+build\build.cmd
 ```
 
 或者手工执行：
@@ -27,17 +29,21 @@ build.cmd
 dotnet build src\ServerMonitor\ServerMonitor.csproj -c Release
 ```
 
-产物在 `src\ServerMonitor\bin\Release\net45\`，共 4 个文件。
+产物在 `src\ServerMonitor\bin\Release\net45\`，**只有一个 `ServerMonitor.exe`**
+（外加一个仅用于排查崩溃的 `ServerMonitor.pdb`，部署时不需要）。
+
+Release 编译结束后会跑一步「合并」：把 `Newtonsoft.Json` 与 `Renci.SshNet`
+的 IL 直接并进 exe，并删掉散落的 dll，所以拷一个文件就能跑。合并只做 IL 层面的
+合并，不是把 dll 压缩塞进去再运行期解包，因此启动不变慢、也不会被杀软拦。
+Debug 配置不做合并，仍然是 exe + dll，便于调试。
 
 ### 2. 部署到服务器
 
-把下面 4 个文件拷到目标服务器任意目录（例如 `D:\ServerMonitor\`），双击 `ServerMonitor.exe` 即可：
+把 `ServerMonitor.exe` 拷到目标服务器任意目录（例如 `D:\ServerMonitor\`），
+双击即可，就这一个文件：
 
 ```
 ServerMonitor.exe
-ServerMonitor.exe.config
-Newtonsoft.Json.dll
-Renci.SshNet.dll
 ```
 
 > **不需要安装任何运行时。** Windows Server 2012 R2 自带 .NET Framework 4.5.1，
@@ -112,23 +118,16 @@ Renci.SshNet.dll
 > 「**没有足够的内存继续执行程序**」——后者与内存无关，是 WMI 出了名的误导性报错）。
 > 要监控别的服务器，请在地址里填**那台机器的内网 IP**，不要填 `127.0.0.1`。
 
-**一键配置**：`tools\` 下有两个等价脚本，任选其一，在目标机上以**管理员身份**运行一次即可。
-
-优先级建议 **CMD 版**——它不依赖 PowerShell，不受执行策略限制，也没有脚本编码问题：
+**一键配置**：在目标机上以**管理员身份**运行一次即可：
 
 ```cmd
-:: 推荐：右键「以管理员身份运行」，或先改脚本开头的账号密码
+:: 右键「以管理员身份运行」，运行时会提示输入采集账号的口令
 tools\setup-wmi-target.cmd
 ```
 
-```cmd
-:: 备选：需要 PowerShell 环境正常
-powershell -ExecutionPolicy Bypass -File tools\setup-wmi-target.ps1
-```
-
-> CMD 版的输出刻意只用英文。原因是 UTF-8 编码的 `.cmd` 会被 `cmd.exe`
-> 错误解析——中文字符的 UTF-8 尾字节会撞上 `&`、`|` 等元字符，
-> 导致注释行被当成命令执行（实测确认）。英文输出在任何语言系统上都正确。
+> 它刻意只用 CMD、不依赖 PowerShell——不受执行策略限制，也没有脚本编码问题。输出只用英文，
+> 原因是 UTF-8 编码的 `.cmd` 会被 `cmd.exe` 错误解析：中文字符的 UTF-8 尾字节会撞上
+> `&`、`|` 等元字符，导致注释行被当成命令执行（实测确认）。英文输出在任何语言系统上都正确。
 
 它会放行防火墙、建采集账号、加入 `Administrators` 与 `Performance Monitor Users` 组，
 并做一次自检。脚本只使用 PowerShell 2.0 就有的能力，因此
@@ -296,17 +295,30 @@ data\
 ## 七、项目结构
 
 ```
-src/ServerMonitor/
-├── Models/          数据模型（配置、快照、采样、设置）
-├── Services/        采集与存储
-│   ├── SshCollector.cs      Linux：一次 SSH 往返取全部指标
-│   ├── WmiCollector.cs      Windows：WMI/DCOM，CPU 三级降级策略
-│   ├── WinRmCollector.cs    Windows：PowerShell 远程
-│   ├── MonitorEngine.cs     定时并发调度
-│   ├── ConfigStore.cs       配置读写 + DPAPI 口令加密
-│   └── HistoryStore.cs      日采样 + 日汇总
-├── Controls/        自绘控件（仪表、走势线、条形计、折线图）
-├── ViewModels/      MVVM
-├── Views/           四个页面 + 两个对话框
-└── Themes/          设计令牌（深浅两套）+ 控件样式 + 矢量图标
+ServerMonitor/
+├── src/ServerMonitor/
+│   ├── Models/          数据模型（配置、快照、采样、设置）
+│   ├── Services/        采集与存储
+│   │   ├── SshCollector.cs      Linux：一次 SSH 往返取全部指标
+│   │   ├── WmiCollector.cs      Windows：WMI/DCOM，CPU 三级降级策略
+│   │   ├── WinRmCollector.cs    Windows：PowerShell 远程
+│   │   ├── MonitorEngine.cs     定时并发调度
+│   │   ├── ConfigStore.cs       配置读写 + DPAPI 口令加密
+│   │   └── HistoryStore.cs      日采样 + 日汇总
+│   ├── Controls/        自绘控件（仪表、走势线、条形计、折线图）
+│   ├── ViewModels/      MVVM
+│   ├── Views/           四个页面 + 两个对话框
+│   └── Themes/          设计令牌（深浅两套）+ 控件样式 + 矢量图标
+├── build/               构建脚本：build.cmd 一键构建（见「快速开始」）、
+│                        make-icon.ps1 生成程序图标
+├── tools/               目标机配置脚本（见 tools/README.md）
+└── docs/                截图与使用手册
 ```
+
+### 文档索引
+
+| 文档 | 讲什么 |
+|---|---|
+| [docs/使用手册.md](docs/使用手册.md) | **怎么用**：部署、接入服务器、日常操作、告警推送、排障 |
+| [tools/README.md](tools/README.md) | Windows 目标机接入细节：脚本、默认口令、密码策略、常见问题 |
+| 本文件 | 项目总览与技术设计 |

@@ -1,8 +1,8 @@
-﻿﻿﻿# 生成程序图标 app.ico（多尺寸）。
+﻿# 生成程序图标 app.ico（多尺寸）。
 # 图案与标题栏左上角的标识一致：强调色圆角方块 + 白色机架图形。
 # 输出到 src\ServerMonitor\app.ico
 #
-# 用法：powershell -ExecutionPolicy Bypass -File make-icon.ps1
+# 用法：powershell -ExecutionPolicy Bypass -File build\make-icon.ps1
 
 Add-Type -AssemblyName System.Drawing
 

@@ -5,13 +5,18 @@ obj/
 *.suo
 .vs/
 
+# 图标预览图，跑 build/make-icon.ps1 时会重新生成，不必入库
+build/icon-preview.png
+
 # ---------- 运行时数据 ----------
 # 内含服务器地址、账号与加密后的口令，以及历史采样，绝不入库
 data/
 
 # ---------- 第三方二进制（体积大，改为按需下载） ----------
 # 见 tools/README.md 里的下载地址
-tools/OpenSSH-Win64/
+# 故意不写 tools/ 前缀：部署前常把整个 tools 目录复制/改名成别的文件夹，
+# 那些副本里的 OpenSSH-Win64 一样是 11MB 二进制，同样不该入库
+OpenSSH-Win64/
 
 # ---------- 编辑器 / 系统 ----------
 .idea/
