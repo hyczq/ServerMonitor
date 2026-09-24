@@ -718,6 +718,66 @@ namespace ServerMonitor.ViewModels
             }
         }
 
+        // ---------- 关闭行为 ----------
+
+        /// <summary>关闭主窗口时每次都问（落盘值是 AppSettings.CloseActionAsk）。</summary>
+        public const int CloseActionAsk = 0;
+
+        /// <summary>关闭主窗口时隐藏到通知区域，采集与推送继续。</summary>
+        public const int CloseActionBackground = 1;
+
+        /// <summary>关闭主窗口即退出程序。</summary>
+        public const int CloseActionExit = 2;
+
+        /// <summary>
+        /// 供设置页的下拉框与关窗流程共用：0 = 每次询问，1 = 后台运行，2 = 直接退出。
+        /// 三个取值必须与设置页那张卡的 ComboBoxItem 顺序一致。
+        ///
+        /// 关窗口时读它决定行为，用户在弹窗里勾了"记住我的选择"就写它——
+        /// 两条路共用一个属性，才不会出现"弹窗记住的"和"设置页显示的"两套状态。
+        /// </summary>
+        public int CloseActionIndex
+        {
+            get
+            {
+                // 不认得的落盘值（手改错了）按"每次问"处理，与 AppSettings.Normalize 一致
+                switch (_config.Settings.CloseAction)
+                {
+                    case AppSettings.CloseActionBackground: return CloseActionBackground;
+                    case AppSettings.CloseActionExit: return CloseActionExit;
+                    default: return CloseActionAsk;
+                }
+            }
+            set
+            {
+                // 越界值一律忽略，绝不落盘。
+                // WPF 的 ComboBox 在"还没有选中项"时会把 -1 通过 TwoWay 的 SelectedIndex 推回来
+                // （绑定首次生效、条目被清空重建、控件尚未完成布局都会这样），
+                // 那时用户存下的选择必须原样保住。早先这里把 -1 和"每次询问"一起塞进 default 分支，
+                // 等于页面每重建一次就把"后台运行"改回"每次询问"，而 SaveSettings 不写日志，
+                // 事后只看文件完全看不出是谁改的。文件里手改出的非法值仍按"每次询问"处理，
+                // 那条路在 AppSettings.Normalize，两条路不能合并。
+                if (value != CloseActionAsk && value != CloseActionBackground && value != CloseActionExit)
+                {
+                    Logger.Debug("设置", "忽略越界的关闭行为索引：" + value);
+                    return;
+                }
+
+                string next;
+                switch (value)
+                {
+                    case CloseActionBackground: next = AppSettings.CloseActionBackground; break;
+                    case CloseActionExit: next = AppSettings.CloseActionExit; break;
+                    default: next = AppSettings.CloseActionAsk; break;
+                }
+
+                if (_config.Settings.CloseAction == next) return;
+                _config.Settings.CloseAction = next;
+                _config.SaveSettings();
+                Raise();
+            }
+        }
+
         // ---------- Webhook ----------
 
         public bool WebhookEnabled

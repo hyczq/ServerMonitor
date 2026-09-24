@@ -35,6 +35,12 @@
       <Setter Property="HorizontalAlignment" Value="Left" />
     </Style>
 
+    <!-- 下拉框同理：单列卡片里拉满整行会像一条横幅 -->
+    <Style x:Key="ChoiceBox" TargetType="ComboBox" BasedOn="{StaticResource AppComboBox}">
+      <Setter Property="Width" Value="300" />
+      <Setter Property="HorizontalAlignment" Value="Left" />
+    </Style>
+
   </UserControl.Resources>
 
   <ScrollViewer VerticalScrollBarVisibility="Auto">
@@ -170,6 +176,26 @@
                     IsChecked="{Binding DarkTheme, Mode=TwoWay}" />
           <TextBlock Style="{StaticResource FieldHint}"
                      Text="深色主题适合长期值守的监控大屏；浅色主题在明亮办公室里更易读。也可以按 Ctrl+D 快速切换。" />
+        </StackPanel>
+      </Border>
+
+      <!-- ============ 窗口与后台运行 ============ -->
+      <Border Style="{StaticResource SettingsCard}">
+        <StackPanel>
+          <TextBlock Text="窗口与后台运行" Style="{StaticResource SectionText}" />
+          <Border Style="{StaticResource Hairline}" Margin="0,12,0,16" />
+
+          <TextBlock Text="关闭主窗口时" Style="{StaticResource FieldLabel}" />
+          <!-- 三项的顺序必须与 MainViewModel.CloseAction* 的常量一致（0/1/2） -->
+          <ComboBox Style="{StaticResource ChoiceBox}"
+                    SelectedIndex="{Binding CloseActionIndex, Mode=TwoWay}">
+            <ComboBoxItem Content="每次询问" />
+            <ComboBoxItem Content="后台运行（隐藏到通知区域）" />
+            <ComboBoxItem Content="直接退出" />
+          </ComboBox>
+
+          <TextBlock Style="{StaticResource FieldHint}"
+                     Text="选「后台运行」时窗口会隐藏到通知区域，采集、阈值告警与 Webhook 推送照常进行：双击图标回到窗口，右键图标可以立即刷新或退出。选「每次询问」则每次关窗都会先问一次。" />
         </StackPanel>
       </Border>
 

@@ -129,6 +129,25 @@ namespace ServerMonitor.Models
         /// <summary>忽略 HTTPS 证书错误（内网自签名证书常见）。默认关闭。</summary>
         public bool WebhookIgnoreCertErrors { get; set; }
 
+        // ---------- 关闭行为 ----------
+
+        /// <summary>点关闭按钮时每次都问。</summary>
+        public const string CloseActionAsk = "ask";
+
+        /// <summary>点关闭按钮时隐藏到通知区域，采集与推送继续。</summary>
+        public const string CloseActionBackground = "background";
+
+        /// <summary>点关闭按钮即退出程序。</summary>
+        public const string CloseActionExit = "exit";
+
+        /// <summary>
+        /// 点主窗口关闭按钮时的行为：ask / background / exit。
+        ///
+        /// 与 LogLevel 一样刻意用字符串而不是枚举：settings.json 是人会去手改的，
+        /// 写 "background" 比写 1 直观得多。
+        /// </summary>
+        public string CloseAction { get; set; }
+
         public AppSettings()
         {
             RefreshSeconds = 60;
@@ -167,6 +186,11 @@ namespace ServerMonitor.Models
             WebhookTimeoutSeconds = 10;
             WebhookContentType = "application/json";
             WebhookIgnoreCertErrors = false;
+
+            // 默认每次问：直接退出会让"想让它继续盯着"的人白丢一段监控，
+            // 直接进后台又会让"以为已经关了"的人以为程序没了。问一次最稳，
+            // 用户勾一次"记住"就再也不问了。
+            CloseAction = CloseActionAsk;
         }
 
         /// <summary>把越界的配置夹回合法范围，避免用户改坏配置文件后程序异常。</summary>
@@ -258,6 +282,23 @@ namespace ServerMonitor.Models
             // 地址没填就不要保持"已启用"，否则每轮都会白报一次错
             if (string.IsNullOrWhiteSpace(WebhookUrl)) WebhookEnabled = false;
             if (WebhookUrl != null) WebhookUrl = WebhookUrl.Trim();
+
+            // 不认识的值一律退回"每次问"。宁可多问一次，也不要出现"关不掉"
+            // 或"悄悄退到后台"这两种用户看不出来的行为。
+            // ToLowerInvariant 而不是 ToLower："EXIT" 在土耳其语区域下会变成 "exıt"。
+            if (string.IsNullOrWhiteSpace(CloseAction))
+            {
+                CloseAction = CloseActionAsk;
+            }
+            else
+            {
+                string action = CloseAction.Trim().ToLowerInvariant();
+                if (action != CloseActionBackground && action != CloseActionExit)
+                {
+                    action = CloseActionAsk;
+                }
+                CloseAction = action;
+            }
         }
     }
 }

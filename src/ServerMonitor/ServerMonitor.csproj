@@ -56,6 +56,14 @@
     <Reference Include="System.Management" />
     <Reference Include="System.Security" />
     <Reference Include="System.Configuration" />
+
+    <!-- 通知区域的图标用：System.Windows.Forms 的 NotifyIcon + System.Drawing 的 Icon。
+         不打开 UseWindowsForms —— 那是 .NET Core 时代的开关，WPF 与 WinForms 同项目
+         只从 .NET 5 起才被支持，net45 上会直接构建失败。
+         两条都是框架程序集引用（GAC 里有），不会进输出目录，部署仍是单 exe，
+         也碰不到下面 ILRepack 白名单里的那两个文件名。 -->
+    <Reference Include="System.Windows.Forms" />
+    <Reference Include="System.Drawing" />
   </ItemGroup>
 
   <ItemGroup>

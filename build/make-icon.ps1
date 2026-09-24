@@ -73,18 +73,69 @@ function New-IconBitmap([int]$size) {
     return $bmp
 }
 
-# 生成各尺寸的 PNG 数据
+# PNG 条目数据。体积小，给大尺寸用。
+function Get-IconPngBytes([System.Drawing.Bitmap]$bmp) {
+    $ms = New-Object System.IO.MemoryStream
+    $bmp.Save($ms, [System.Drawing.Imaging.ImageFormat]::Png)
+    $bytes = $ms.ToArray()
+    $ms.Dispose()
+    return $bytes
+}
+
+# 未压缩的 DIB 条目数据，给托盘用的小尺寸用。
+#
+# 为什么不全都用 PNG：通知区域的图标由 System.Drawing.Icon 读，而它只保证认得
+# DIB 条目。PNG 压缩条目是 Vista 以后资源管理器的本事，不能假定托盘那条更老的
+# 路径也认——本程序要跑在 Server 2012 R2 上，赌不起。
+#
+# GDI+ 存出来的 BMP 正好是 ICO 要的形状（40 字节 BITMAPINFOHEADER + BI_RGB +
+# 自下而上的 32bpp 像素），只有两处必须改：
+#   1) biHeight 记成两倍高：ICO 的 DIB 在像素之上还叠着一张 AND 掩码
+#   2) 补上那张 AND 掩码（32bpp 自带 alpha，掩码全 0 = 不透明）
+# biSizeImage 也顺手填上：GDI+ 存 BMP 时写 0，而 Windows 自己写图标时填的是
+# "像素 + 掩码"的总长（实测 4bpp 16x16 的图标填 192 = 128 + 64），照着来最稳。
+function Get-IconDibBytes([System.Drawing.Bitmap]$bmp) {
+    $w = $bmp.Width
+    $h = $bmp.Height
+
+    $ms = New-Object System.IO.MemoryStream
+    $bmp.Save($ms, [System.Drawing.Imaging.ImageFormat]::Bmp)
+    $file = $ms.ToArray()
+    $ms.Dispose()
+
+    $dib = New-Object byte[] ($file.Length - 14)                    # 去掉 BITMAPFILEHEADER
+    [Array]::Copy($file, 14, $dib, 0, $dib.Length)
+
+    $headerSize = [BitConverter]::ToUInt32($dib, 0)
+    $xorSize = $dib.Length - $headerSize
+
+    $maskStride = [int][Math]::Ceiling($w / 32.0) * 4               # AND 掩码每行按 4 字节对齐
+    $mask = New-Object byte[] ($maskStride * $h)
+
+    [Array]::Copy([BitConverter]::GetBytes([int]($h * 2)), 0, $dib, 8, 4)              # biHeight
+    [Array]::Copy([BitConverter]::GetBytes([int]($xorSize + $mask.Length)), 0, $dib, 20, 4)
+
+    $out = New-Object byte[] ($dib.Length + $mask.Length)
+    [Array]::Copy($dib, 0, $out, 0, $dib.Length)
+    [Array]::Copy($mask, 0, $out, $dib.Length, $mask.Length)
+    return $out
+}
+
+# 生成各尺寸的条目数据：小尺寸用 DIB（托盘要读），大尺寸用 PNG（省体积）
+#
+# [byte[]] 这个强转不能省：PowerShell 把函数的输出收进 Object[]，于是下面
+# $bw.Write($img.Bytes) 会挑中"写一个字节"的那个重载，只写下数组的第一个字节
+# （DIB 的第一个字节是 0x28）——文件小得像玩笑，且要到运行时才发现图标是坏的。
 $sizes = @(16, 24, 32, 48, 64, 128, 256)
 $images = @()
 foreach ($s in $sizes) {
     $bmp = New-IconBitmap $s
-    $ms = New-Object System.IO.MemoryStream
-    $bmp.Save($ms, [System.Drawing.Imaging.ImageFormat]::Png)
-    $images += , @{ Size = $s; Bytes = $ms.ToArray() }
-    $ms.Dispose(); $bmp.Dispose()
+    $bytes = [byte[]]$(if ($s -le 48) { Get-IconDibBytes $bmp } else { Get-IconPngBytes $bmp })
+    $images += , @{ Size = $s; Bytes = $bytes }
+    $bmp.Dispose()
 }
 
-# 按 ICO 格式打包（PNG 压缩条目，Vista 及以上支持）
+# 按 ICO 格式打包（小尺寸未压缩 DIB + 大尺寸 PNG）
 $fs = [System.IO.File]::Create($outPath)
 $bw = New-Object System.IO.BinaryWriter $fs
 
@@ -112,6 +163,23 @@ $bw.Flush(); $bw.Close(); $fs.Close()
 Write-Host "已生成 $outPath" -ForegroundColor Green
 Write-Host ("尺寸: " + (($sizes | ForEach-Object { "${_}x$_" }) -join ', '))
 Write-Host ("文件大小: {0:N0} 字节" -f (Get-Item $outPath).Length)
+
+# 自检：用托盘图标实际要走的那条路（System.Drawing.Icon）把每个尺寸都读一遍。
+# 读不出来就当场失败——否则要等到程序在目标机上跑起来，才发现托盘里什么都没有。
+foreach ($s in $sizes) {
+    $check = [System.IO.File]::OpenRead($outPath)
+    try {
+        $probe = New-Object System.Drawing.Icon($check, $s, $s)
+        $got = "{0}x{1}" -f $probe.Width, $probe.Height
+        $probe.Dispose()
+        Write-Host ("  {0,3} -> {1}" -f $s, $got)
+    } catch {
+        throw ("图标自检失败（{0}x{0}）：{1}" -f $s, $_.Exception.Message)
+    } finally {
+        $check.Close()
+    }
+}
+Write-Host "图标自检通过" -ForegroundColor Green
 
 # 顺带输出一张预览图，方便肉眼确认各尺寸下的观感
 $preview = Join-Path $PSScriptRoot 'icon-preview.png'

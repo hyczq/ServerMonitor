@@ -1,0 +1,68 @@
+<Window x:Class="ServerMonitor.Views.CloseChoiceDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
+        Title="关闭服务器监控台？"
+        SizeToContent="Height"
+        Width="460"
+        MinHeight="190"
+        WindowStartupLocation="CenterOwner"
+        WindowStyle="None"
+        ResizeMode="NoResize"
+        ShowInTaskbar="False"
+        AllowsTransparency="False"
+        Background="{DynamicResource SurfaceCard}"
+        FontFamily="Segoe UI, Microsoft YaHei UI, Microsoft YaHei"
+        TextOptions.TextFormattingMode="Display">
+
+  <shell:WindowChrome.WindowChrome>
+    <shell:WindowChrome CaptionHeight="0" ResizeBorderThickness="0"
+                        GlassFrameThickness="0" CornerRadius="0"
+                        UseAeroCaptionButtons="False" />
+  </shell:WindowChrome.WindowChrome>
+
+  <Border BorderBrush="{DynamicResource StrokeStrong}" BorderThickness="1">
+    <Grid Margin="22,20,22,18">
+      <Grid.RowDefinitions>
+        <RowDefinition Height="Auto" />
+        <RowDefinition Height="*" />
+        <RowDefinition Height="Auto" />
+      </Grid.RowDefinitions>
+
+      <!-- 标题行 -->
+      <StackPanel Grid.Row="0" Orientation="Horizontal">
+        <Border x:Name="AccentBar" Width="3" Height="16" CornerRadius="1.5"
+                Background="{DynamicResource Accent}" VerticalAlignment="Center" />
+        <TextBlock x:Name="TitleText" Text="关闭服务器监控台？" Margin="10,0,0,0"
+                   Style="{StaticResource TitleText}" VerticalAlignment="Center" />
+      </StackPanel>
+
+      <StackPanel Grid.Row="1" Margin="0,16,0,0">
+        <TextBlock Style="{StaticResource BodyText}" TextWrapping="Wrap" LineHeight="20"
+                   Text="「关闭」会退出程序，采集、阈值告警和推送全部停止。如果只是想让它继续盯着，请选「后台运行」——窗口会隐藏到通知区域，采集与推送照常进行。" />
+        <TextBlock Style="{StaticResource CaptionText}" TextWrapping="Wrap" Margin="0,10,0,0"
+                   Text="回到窗口：双击通知区域的图标。退出程序：右键图标 → 退出。" />
+
+        <CheckBox x:Name="RememberBox" Style="{StaticResource AppCheckBox}" Margin="0,16,0,0"
+                  Content="记住我的选择（可在「设置 → 窗口与后台运行」里修改）" />
+      </StackPanel>
+
+      <!--
+        按钮语义：
+          取消（Esc）      什么都不做，窗口留着
+          后台运行         Ghost + 非默认——它是"不退出"的那条路，不该被回车误触发
+          关闭（Enter）    Primary + IsDefault——用户本来就是点的关闭按钮，回车给出同样的结果
+        "以为关了其实还在跑"比"以为在跑其实关了"更难自查，所以默认键给关闭。
+      -->
+      <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right"
+                  Margin="0,20,0,0">
+        <Button x:Name="CancelButton" Content="取消" Style="{StaticResource GhostButton}"
+                MinWidth="82" Margin="0,0,10,0" Click="OnCancel" IsCancel="True" />
+        <Button x:Name="BackgroundButton" Content="后台运行" Style="{StaticResource GhostButton}"
+                MinWidth="96" Margin="0,0,10,0" Click="OnBackground" />
+        <Button x:Name="ExitButton" Content="关闭" Style="{StaticResource PrimaryButton}"
+                MinWidth="82" Click="OnExit" IsDefault="True" />
+      </StackPanel>
+    </Grid>
+  </Border>
+</Window>
