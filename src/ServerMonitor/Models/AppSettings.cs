@@ -21,9 +21,6 @@ namespace ServerMonitor.Models
         /// <summary>原始采样文件保留天数，超期自动清理；日汇总永久保留。</summary>
         public int RawRetentionDays { get; set; }
 
-        /// <summary>卡片上趋势图的采样点数。</summary>
-        public int SparklinePoints { get; set; }
-
         /// <summary>同时采集的最大并发数，避免网络与目标机压力过大。</summary>
         public int MaxConcurrency { get; set; }
 
@@ -139,7 +136,6 @@ namespace ServerMonitor.Models
             CriticalThreshold = 90;
             DarkTheme = true;
             RawRetentionDays = 30;
-            SparklinePoints = 40;
             MaxConcurrency = 8;
 
             AiEnabled = false;
@@ -187,9 +183,6 @@ namespace ServerMonitor.Models
 
             if (RawRetentionDays < 1) RawRetentionDays = 1;
             if (RawRetentionDays > 3650) RawRetentionDays = 3650;
-
-            if (SparklinePoints < 10) SparklinePoints = 10;
-            if (SparklinePoints > 240) SparklinePoints = 240;
 
             if (MaxConcurrency < 1) MaxConcurrency = 1;
             if (MaxConcurrency > 64) MaxConcurrency = 64;
