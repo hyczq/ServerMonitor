@@ -263,4 +263,109 @@ namespace ServerMonitor.Services
         }
 
         /// <summary>
-        /// 扩容检测：盘扩容后旧点的 Used
+        /// 扩容检测：盘扩容后旧点的 Used 与新点不可比（新增的容量会被算成用量下降），
+        /// 所以从最新往回只保留容量与当前一致的点，遇到第一个不一致的就连同更老的一起丢弃。
+        /// 静默丢弃——这既不是错误也不是缺数据，只是这段历史不能再用来外推了。
+        /// </summary>
+        private static List<DiskTrendPoint> TrimToCurrentCapacity(
+            IList<DiskTrendPoint> points, double currentTotalBytes)
+        {
+            double tolerance = currentTotalBytes * CapacityTolerance;
+            var kept = new List<DiskTrendPoint>();
+
+            for (int i = points.Count - 1; i >= 0; i--)
+            {
+                if (Math.Abs(points[i].TotalBytes - currentTotalBytes) > tolerance) break;
+                kept.Add(points[i]);
+            }
+
+            kept.Reverse();
+            return kept;
+        }
+
+        /// <summary>取最近 windowDays 天（含最后一天）的点。不足就是全部。</summary>
+        private static List<DiskTrendPoint> Tail(IList<DiskTrendPoint> points, int windowDays)
+        {
+            var tail = new List<DiskTrendPoint>();
+            if (points == null || points.Count == 0) return tail;
+
+            DateTime from = points[points.Count - 1].Date.AddDays(-(windowDays - 1));
+            for (int i = 0; i < points.Count; i++)
+            {
+                if (points[i].Date >= from) tail.Add(points[i]);
+            }
+            return tail;
+        }
+
+        /// <summary>
+        /// 后半段均值是否高于前半段。奇数个点时对称地取两端、丢掉正中间那个，
+        /// 否则"前半段比后半段多一个点"会把比较带偏。
+        /// </summary>
+        private static bool Rising(List<DiskTrendPoint> points)
+        {
+            int half = points.Count / 2;
+            if (half == 0) return false;
+
+            double firstSum = 0;
+            double lastSum = 0;
+            for (int i = 0; i < half; i++) firstSum += points[i].UsedBytes;
+            for (int i = points.Count - half; i < points.Count; i++) lastSum += points[i].UsedBytes;
+
+            return lastSum / half > firstSum / half;
+        }
+
+        private sealed class Fit
+        {
+            public double Slope = double.NaN;
+            public double R2 = double.NaN;
+        }
+
+        /// <summary>
+        /// 最小二乘拟合 (天数, 已用字节)。x 用"自首点起的真实天数"而不是列表下标：
+        /// 断采 3 天会把 3 天的增长压进 1 个 x 步长，斜率虚高约 3 倍，
+        /// 报出假的"4 天后写满"。点少于 2 个或日期无跨度时 Slope 为 NaN。
+        /// </summary>
+        private static Fit FitLine(IList<DiskTrendPoint> points)
+        {
+            var fit = new Fit();
+            if (points == null || points.Count < 2) return fit;
+
+            int n = points.Count;
+            var xs = new double[n];
+            double meanX = 0;
+            double meanY = 0;
+
+            DateTime first = points[0].Date;
+            for (int i = 0; i < n; i++)
+            {
+                xs[i] = (points[i].Date - first).TotalDays;
+                meanX += xs[i];
+                meanY += points[i].UsedBytes;
+            }
+            meanX /= n;
+            meanY /= n;
+
+            double sxx = 0;
+            double sxy = 0;
+            double syy = 0;
+            for (int i = 0; i < n; i++)
+            {
+                double dx = xs[i] - meanX;
+                double dy = points[i].UsedBytes - meanY;
+                sxx += dx * dx;
+                sxy += dx * dy;
+                syy += dy * dy;
+            }
+
+            if (sxx <= 0) return fit;
+
+            fit.Slope = sxy / sxx;
+
+            // 残差平方和 = syy - slope*sxy（最小二乘的恒等式）。
+            // syy 为 0 说明所有点一样高，那是"不增长"，由斜率门槛拦。
+            fit.R2 = syy > 0 ? 1.0 - (syy - fit.Slope * sxy) / syy : 0.0;
+
+            return fit;
+        }
+    }
+}
