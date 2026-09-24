@@ -29,8 +29,12 @@ build\build.cmd
 dotnet build src\ServerMonitor\ServerMonitor.csproj -c Release
 ```
 
-产物在 `src\ServerMonitor\bin\Release\net45\`，**只有一个 `ServerMonitor.exe`**
+产物在 `build\Release\net45\`，**只有一个 `ServerMonitor.exe`**
 （外加一个仅用于排查崩溃的 `ServerMonitor.pdb`，部署时不需要）。
+
+输出位置由项目自己决定（`ServerMonitor.csproj` 的 `OutputPath` 与
+`Directory.Build.props` 的 `BaseIntermediateOutputPath`），所以上面两种构建方式落在
+同一个地方；`src\` 下只有源码，编译产物和中间文件一律在 `build\` 里。
 
 Release 编译结束后会跑一步「合并」：把 `Newtonsoft.Json` 与 `Renci.SshNet`
 的 IL 直接并进 exe，并删掉散落的 dll，所以拷一个文件就能跑。合并只做 IL 层面的
@@ -204,7 +208,8 @@ tools\setup-wmi-target.cmd
 
 ## 四、数据存储
 
-所有数据存放在程序目录下的 `data\` 子目录：
+所有数据存放在程序目录下的 `data\` 子目录（用本仓库的 `build\build.cmd` 构建时，
+程序目录就是 `build\Release\net45\`）：
 
 ```
 data\
@@ -310,8 +315,10 @@ ServerMonitor/
 │   ├── ViewModels/      MVVM
 │   ├── Views/           四个页面 + 两个对话框
 │   └── Themes/          设计令牌（深浅两套）+ 控件样式 + 矢量图标
-├── build/               构建脚本：build.cmd 一键构建（见「快速开始」）、
-│                        make-icon.ps1 生成程序图标
+├── Directory.Build.props 构建输出位置：产物与中间文件都落在 build\ 里
+├── build/               构建脚本与产物：build.cmd 一键构建（见「快速开始」）、
+│                        make-icon.ps1 生成程序图标；
+│                        Release\ 是编译产物，obj\ 是中间文件，都不入库
 ├── tools/               目标机配置脚本（见 tools/README.md）
 └── docs/                截图与使用手册
 ```

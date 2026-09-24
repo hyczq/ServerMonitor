@@ -1,4 +1,9 @@
 # ---------- 构建产物 ----------
+# OutputPath / BaseIntermediateOutputPath 现在指向 build\（见 csproj 与
+# Directory.Build.props），所以 src 下不该再出现产物；bin/ obj/ 这两条留着兜住
+# 别的项目的默认布局。build\obj 已被 obj/ 覆盖，build\Release 得单独写：
+build/Release/
+build/Debug/
 bin/
 obj/
 *.user

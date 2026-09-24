@@ -26,6 +26,11 @@
     <GenerateSupportedRuntime>false</GenerateSupportedRuntime>
     <SatelliteResourceLanguages>zh-Hans;en</SatelliteResourceLanguages>
     <NoWarn>$(NoWarn);CS1591</NoWarn>
+    <!-- 产物不放在 src 下，统一落到仓库根的 build\ 里（目录名与 build\build.cmd 一致）。
+         SDK 会自动在末尾再拼一层 $(TargetFramework)，所以 Release 的实际输出是
+         build\Release\net45\，Debug 是 build\Debug\net45\，两者不会撞在一起。
+         中间产物 obj 也同样挪出去了，见仓库根的 Directory.Build.props。 -->
+    <OutputPath>$(MSBuildThisFileDirectory)..\..\build\$(Configuration)\</OutputPath>
   </PropertyGroup>
 
   <ItemGroup>

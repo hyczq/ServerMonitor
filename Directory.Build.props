@@ -1,0 +1,16 @@
+<Project>
+
+  <!--
+    编译产物不放在 src 下：exe 在 build\Release\net45\，中间文件在 build\obj\。
+    （exe 的位置由 ServerMonitor.csproj 里的 OutputPath 决定，这里是 obj。）
+
+    BaseIntermediateOutputPath 必须在 Microsoft.Common.props 导入之前赋值，
+    写进 csproj 已经太晚——SDK 风格的 <Project Sdk="..."> 会先把 Sdk.props
+    导进来，obj 的默认值那时就定下了。Directory.Build.props 是
+    Microsoft.Common.props 导入的第一个文件，只有在这里写才生效。
+  -->
+  <PropertyGroup>
+    <BaseIntermediateOutputPath>$(MSBuildThisFileDirectory)build\obj\</BaseIntermediateOutputPath>
+  </PropertyGroup>
+
+</Project>
