@@ -9,10 +9,11 @@
 
     <!-- ============ 磁盘行 ============
          每个分区最多三行：
-           第一行  盘符（主文字）+ 已用/总容量（静音）—— 容量原来是悬浮提示，信息藏得太深
+           第一行  盘符（主文字）+ 已用/总容量（静音）+ 剩余容量（次要文字）
            第二行  用量条 + 百分比（右对齐，等宽数字，多行纵向对齐）
            第三行  容量趋势标注（"按当前增速约 25 天后写满"）；没有预测时整行收起，行高不变
-         盘符用主文字色而非静音色：在 Windows 上 C:/D: 才是识别分区的主要依据。 -->
+         盘符用主文字色而非静音色：在 Windows 上 C:/D: 才是识别分区的主要依据。
+         剩余容量原来只在用量条 tooltip 里，现在直接放在第一行，扫一眼就能看到。 -->
     <DataTemplate x:Key="DiskRowTemplate">
       <Grid Margin="0,0,0,10">
         <Grid.RowDefinitions>
@@ -30,9 +31,13 @@
                      TextTrimming="CharacterEllipsis" VerticalAlignment="Center"
                      ToolTip="{Binding Mount}"
                      Foreground="{DynamicResource TextPrimary}" />
-          <TextBlock Grid.Column="1" Text="{Binding UsageText}" Margin="8,0,0,0"
-                     FontSize="11" VerticalAlignment="Center"
-                     Foreground="{DynamicResource TextMuted}" />
+          <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="8,0,0,0"
+                      VerticalAlignment="Center">
+            <TextBlock Text="{Binding UsageText}" FontSize="11"
+                       Foreground="{DynamicResource TextMuted}" />
+            <TextBlock Text="{Binding FreeText}" Margin="7,0,0,0" FontSize="11"
+                       Foreground="{DynamicResource TextSecondary}" />
+          </StackPanel>
         </Grid>
 
         <Grid Grid.Row="1" Margin="0,5,0,0">

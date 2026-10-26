@@ -138,15 +138,9 @@ namespace ServerMonitor.Services
                 return result;
             }
 
-            // 已经到告警线的分区交给现有阈值告警。预测只管"还没报警但正在涨"的，
-            // 两者不重叠——否则同一个盘会被两套机制同时喊，还会互相盖住文案。
-            double percent = currentUsedBytes / currentTotalBytes * 100.0;
-            if (percent >= settings.CriticalThreshold)
-            {
-                result.Reason = "用量已达告警线 " + percent.ToString("0.0") + "%，交由阈值告警";
-                return result;
-            }
-
+            // 刻意不在 CriticalThreshold 处截断：用量越高的分区越需要"还有几天写满"。
+            // 预测级别本来就不参与卡片的 OverallLevel、不进"只看异常"过滤，
+            // 与阈值告警互不影响；只有分区真的写满（上面 free <= 0）才停止预测。
             List<DiskTrendPoint> fitPoints = TrimToCurrentCapacity(points, currentTotalBytes);
             result.DaysUsed = fitPoints.Count;
 

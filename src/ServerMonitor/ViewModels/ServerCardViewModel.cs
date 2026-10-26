@@ -33,9 +33,13 @@ namespace ServerMonitor.ViewModels
             }
         }
 
+        /// <summary>
+        /// 剩余容量。卡片第一行直接显示，用量条的悬浮提示也用它——
+        /// 原来只藏在 tooltip 里，用户得把鼠标移上去才知道还剩多少。
+        /// </summary>
         public string FreeText
         {
-            get { return "可用 " + Formats.Bytes(Math.Max(0, TotalBytes - UsedBytes)); }
+            get { return "剩余 " + Formats.Bytes(Math.Max(0, TotalBytes - UsedBytes)); }
         }
     }
 
@@ -115,7 +119,7 @@ namespace ServerMonitor.ViewModels
                 {
                     DiskRowViewModel disk = Disks[i];
                     lines.Add(disk.Mount + "  " + Formats.PercentShort(disk.Percent) +
-                              "  (" + disk.UsageText + ")");
+                              "  (" + disk.UsageText + "，" + disk.FreeText + ")");
                 }
                 return string.Join("\n", lines);
             }
