@@ -145,7 +145,8 @@ if ($boot -ne $null) { $up = ((Get-Date) - $boot).TotalSeconds }
                         Mount = mount,
                         FileSystem = GetString((JObject)item, "fs"),
                         TotalBytes = total,
-                        UsedBytes = Math.Max(0, total - free)
+                        UsedBytes = Math.Max(0, total - free),
+                        AvailableBytes = Math.Max(0, free)
                     });
                 }
             }

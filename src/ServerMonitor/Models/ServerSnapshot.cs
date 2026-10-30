@@ -12,14 +12,33 @@ namespace ServerMonitor.Models
         public double TotalBytes { get; set; }
         public double UsedBytes { get; set; }
 
+        /// <summary>
+        /// 普通用户实际还能写入的字节数：Linux 取 df 的 Avail 列，Windows 取 FreeSpace。
+        ///
+        /// 它不等于 TotalBytes - UsedBytes：差额是文件系统给 root 预留的块
+        /// （ext4 默认 5%）。所以"还剩多少"必须看它，不能拿容量相减。
+        /// </summary>
+        public double AvailableBytes { get; set; }
+
+        /// <summary>
+        /// 与 df 的 Use% 同口径：Used / (Used + Available)。
+        ///
+        /// 分母刻意不含预留块。若按 Used / Total 算，df 已经 77% 的盘
+        /// 这里只会显示 73%，两边的告警线就对不上了。
+        /// </summary>
         public double UsedPercent
         {
-            get { return TotalBytes > 0 ? UsedBytes / TotalBytes * 100.0 : 0.0; }
+            get
+            {
+                double usable = UsedBytes + AvailableBytes;
+                return usable > 0 ? UsedBytes / usable * 100.0 : 0.0;
+            }
         }
 
+        /// <summary>剩余可用空间（不是 Total - Used，差额是预留块）。</summary>
         public double FreeBytes
         {
-            get { return Math.Max(0, TotalBytes - UsedBytes); }
+            get { return Math.Max(0, AvailableBytes); }
         }
     }
 

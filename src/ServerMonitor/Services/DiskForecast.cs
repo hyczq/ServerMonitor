@@ -102,10 +102,14 @@ namespace ServerMonitor.Services
         /// <summary>
         /// 外推结果。用传入的当前值做基准，而不是用最后一个拟合点——
         /// 拟合只负责给出"每天涨多少"，起点必须是此刻的真实值。
+        ///
+        /// 剩余空间用 currentAvailableBytes（df 的 Avail），不是 total - used：
+        /// 文件系统预留给 root 的块普通用户写不进去，按 total - used 外推
+        /// 会把"写满"算晚（ext4 默认晚 5%）。
         /// </summary>
         public static DiskForecastResult Evaluate(
             IList<DiskTrendPoint> points, double currentUsedBytes, double currentTotalBytes,
-            AppSettings settings)
+            double currentAvailableBytes, AppSettings settings)
         {
             var result = new DiskForecastResult();
 
@@ -124,14 +128,17 @@ namespace ServerMonitor.Services
                 return result;
             }
 
-            if (currentTotalBytes <= 0 || currentUsedBytes < 0)
+            if (currentTotalBytes <= 0 || currentUsedBytes < 0 || currentAvailableBytes < 0)
             {
                 result.Reason = "容量读数不可用（used=" + currentUsedBytes +
-                                " total=" + currentTotalBytes + "）";
+                                " total=" + currentTotalBytes +
+                                " avail=" + currentAvailableBytes + "）";
                 return result;
             }
 
-            double free = currentTotalBytes - currentUsedBytes;
+            // 写满的判定点与 df 一致：Avail 归零。
+            // 预留给 root 的块不计入剩余，否则预测会偏乐观。
+            double free = currentAvailableBytes;
             if (free <= 0)
             {
                 result.Reason = "分区已写满";

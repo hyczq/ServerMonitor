@@ -18,6 +18,12 @@ namespace ServerMonitor.ViewModels
         public double UsedBytes { get; set; }
 
         /// <summary>
+        /// 实际可写的剩余字节（df 的 Avail）。不是 TotalBytes - UsedBytes：
+        /// 差额是文件系统预留块，普通用户写不进去。
+        /// </summary>
+        public double AvailableBytes { get; set; }
+
+        /// <summary>
         /// 容量趋势标注（"按当前增速约 25 天后写满"）。
         ///
         /// 空串表示这个分区没有预测，模板里由 StringToVis 收起整行，
@@ -36,10 +42,13 @@ namespace ServerMonitor.ViewModels
         /// <summary>
         /// 剩余容量。卡片第一行直接显示，用量条的悬浮提示也用它——
         /// 原来只藏在 tooltip 里，用户得把鼠标移上去才知道还剩多少。
+        ///
+        /// 用 AvailableBytes 而不是 TotalBytes - UsedBytes：后者会把
+        /// 文件系统预留块也算成"剩余"，比 df 的 Avail 虚高（ext4 默认 5%）。
         /// </summary>
         public string FreeText
         {
-            get { return "剩余 " + Formats.Bytes(Math.Max(0, TotalBytes - UsedBytes)); }
+            get { return "剩余 " + Formats.Bytes(Math.Max(0, AvailableBytes)); }
         }
     }
 
@@ -356,6 +365,7 @@ namespace ServerMonitor.ViewModels
                     Level = Formats.Classify(disk.UsedPercent, _settings),
                     TotalBytes = disk.TotalBytes,
                     UsedBytes = disk.UsedBytes,
+                    AvailableBytes = disk.AvailableBytes,
                     ForecastText = LookupForecast(disk.Mount)
                 };
                 Disks.Add(row);

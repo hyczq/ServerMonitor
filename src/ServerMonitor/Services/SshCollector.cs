@@ -314,9 +314,10 @@ namespace ServerMonitor.Services
                 return;
             }
 
-            double blocks, used;
+            double blocks, used, available;
             if (!double.TryParse(parts[1], NumberStyles.Float, CultureInfo.InvariantCulture, out blocks) ||
-                !double.TryParse(parts[2], NumberStyles.Float, CultureInfo.InvariantCulture, out used))
+                !double.TryParse(parts[2], NumberStyles.Float, CultureInfo.InvariantCulture, out used) ||
+                !double.TryParse(parts[3], NumberStyles.Float, CultureInfo.InvariantCulture, out available))
             {
                 Logger.Trace(label, "df 输出的容量字段无法解析，已跳过：" + line);
                 return;
@@ -340,7 +341,11 @@ namespace ServerMonitor.Services
                 FileSystem = fs,
                 Mount = mount,
                 TotalBytes = blocks * 1024.0,
-                UsedBytes = used * 1024.0
+                UsedBytes = used * 1024.0,
+                // df 的第 4 列 Avail，普通用户真正能写的空间。
+                // 与 Total - Used 的差额是文件系统预留块（ext4 默认 5%），
+                // 百分比和"剩余"都必须用它才能和 df 对上。
+                AvailableBytes = available * 1024.0
             });
         }
 

@@ -1279,7 +1279,7 @@ namespace ServerMonitor.ViewModels
                 if (!series.TryGetValue(key, out points)) continue;
 
                 DiskForecastResult result = DiskForecast.Evaluate(
-                    points, disk.UsedBytes, disk.TotalBytes, _config.Settings);
+                    points, disk.UsedBytes, disk.TotalBytes, disk.AvailableBytes, _config.Settings);
 
                 // 每一步判断都留痕：这既是"为什么说 25 天"的唯一答案，
                 // 也是排查"为什么这个分区没有标注"的第一手线索。
@@ -1287,6 +1287,7 @@ namespace ServerMonitor.ViewModels
                     "服务器=" + card.Name +
                     " 分区=" + key +
                     " 有效天=" + result.DaysUsed +
+                    " 可用=" + disk.AvailableBytes.ToString("0", CultureInfo.InvariantCulture) + "B" +
                     " 增速=" + result.BytesPerDay.ToString("0", CultureInfo.InvariantCulture) + "B/天" +
                     " R2=" + result.R2.ToString("0.000", CultureInfo.InvariantCulture) +
                     " 预计=" + (double.IsNaN(result.DaysToFull)

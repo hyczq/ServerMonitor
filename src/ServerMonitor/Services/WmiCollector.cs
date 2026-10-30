@@ -185,7 +185,8 @@ namespace ServerMonitor.Services
                                 : deviceId + " (" + label + ")",
                             FileSystem = fs,
                             TotalBytes = size,
-                            UsedBytes = Math.Max(0, size - free)
+                            UsedBytes = Math.Max(0, size - free),
+                            AvailableBytes = Math.Max(0, free)
                         });
                     }
                 }
